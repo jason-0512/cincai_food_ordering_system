@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'admin/adminPage.dart';
+import 'member/memberPage.dart';
 
 void main() {
   runApp(const MyApp());
@@ -12,9 +14,9 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Flutter Demo',
       theme: ThemeData(
-        colorScheme: .fromSeed(seedColor: Colors.deepPurple),
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
-      home: const MyHomePage(title: 'shit assignment'),
+      home: const MyHomePage(title: 'Assignment Demo'),
     );
   }
 }
@@ -30,7 +32,6 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
@@ -38,12 +39,33 @@ class _MyHomePageState extends State<MyHomePage> {
       ),
       body: Center(
         child: Column(
-          mainAxisAlignment: .center,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Text('test push2'),
+            const Text('Login as:'),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const AdminPage()),
+                );
+              },
+              child: const Text('Admin'),
+            ),
+            const SizedBox(height: 10),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const memberPage()),
+                );
+              },
+              child: const Text('Member'),
+            ),
           ],
         ),
       ),
     );
   }
 }
+
