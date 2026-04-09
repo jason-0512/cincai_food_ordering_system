@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'admin/adminPage.dart';
 import 'member/memberPage.dart';
+import 'member/menu.dart';
 
 void main() {
   runApp(const MyApp());
@@ -16,7 +17,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
-      home: const MyHomePage(title: 'Assignment Demo'),
+      home: const Menu(),
     );
   }
 }
