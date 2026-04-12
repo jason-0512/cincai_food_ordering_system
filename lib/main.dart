@@ -1,6 +1,6 @@
+import 'package:cincai_food_ordering_system/member/home_screen.dart';
 import 'package:flutter/material.dart';
 import 'admin/adminPage.dart';
-import 'member/memberPage.dart';
 import 'member/menu.dart';
 
 void main() {
@@ -17,7 +17,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
-      home: const Menu(),
+      home: const MyHomePage(title: "cljwlkj"),
     );
   }
 }
@@ -58,7 +58,7 @@ class _MyHomePageState extends State<MyHomePage> {
               onPressed: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => const memberPage()),
+                  MaterialPageRoute(builder: (_) => const HomeScreen()),
                 );
               },
               child: const Text('Member'),
