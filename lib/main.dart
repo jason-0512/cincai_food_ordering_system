@@ -3,6 +3,11 @@ import 'package:flutter/material.dart';
 import 'admin/adminPage.dart';
 import 'member/menu.dart';
 
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+const String supabaseUrl = 'https://rqpcdmzttshzlwdrodiy.supabase.co';
+const String supabaseKey = 'key';
+
 void main() {
   runApp(const MyApp());
 }
