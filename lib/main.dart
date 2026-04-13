@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'admin/adminPage.dart';
 import 'member/home.dart';
-import 'member/memberPage.dart';
 import 'member/menu.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+const String supabaseUrl = 'https://rqpcdmzttshzlwdrodiy.supabase.co';
+const String supabaseKey = 'key';
 
 void main() {
   runApp(const MyApp());
@@ -59,7 +62,7 @@ class _MyHomePageState extends State<MyHomePage> {
               onPressed: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => const memberPage()),
+                  MaterialPageRoute(builder: (_) => const Home()),
                 );
               },
               child: const Text('Member'),
@@ -70,4 +73,3 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 }
-
