@@ -55,12 +55,7 @@ class _HomeState extends State<Home> {
         });
         // Navigate to the selected page
         if (index == 1) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const Menu()),
-          ).then((_) {
-            setState(() => _selectedIndex = 0); // ← reset to Home after returning
-          });
+          _showTablePickerDialog();
         } else if (index == 2) {
           Navigator.push(
             context,
@@ -219,6 +214,119 @@ class _HomeState extends State<Home> {
           ),
         ],
       ),
+    );
+  }
+
+  void _showTablePickerDialog() {
+    int? selectedTable;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              backgroundColor: const Color(0xFFF5F5F7),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              title: const Text(
+                'Please Select Your Table Number',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black,
+                ),
+              ),
+              content: SizedBox(
+                width: double.maxFinite,
+                height: 250,
+                child: ListView.builder(
+                  itemCount: 14,
+                  itemBuilder: (context, index) {
+                    final tableNumber = index + 1;
+                    final isSelected = selectedTable == tableNumber;
+                    return GestureDetector(
+                      onTap: () {
+                        setDialogState(() {
+                          selectedTable = tableNumber;
+                        });
+                      },
+                      child: Container(
+                        width: double.infinity,
+                        height: 50,
+                        margin: const EdgeInsets.only(bottom: 8),
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? const Color(0xFFCF0000)
+                              : Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: isSelected
+                                ? const Color(0xFFCF0000)
+                                : Colors.grey.withOpacity(0.3),
+                            width: 1,
+                          ),
+                        ),
+                        child: Center(
+                          child: Text(
+                            '$tableNumber',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: isSelected ? Colors.white : Colors.black,
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              actions: [
+                // Cancel button
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    setState(() => _selectedIndex = 0);
+                  },
+                  child: const Text(
+                    'Cancel',
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                ),
+                // Confirm button
+                ElevatedButton(
+                  onPressed: selectedTable == null
+                      ? null
+                      : () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const Menu()),
+                    ).then((_) {
+                      setState(() => _selectedIndex = 0);
+                    });
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFCF0000),
+                    disabledBackgroundColor: Colors.grey.withOpacity(0.3),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(50),
+                    ),
+                  ),
+                  child: const Text(
+                    'Confirm',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 
