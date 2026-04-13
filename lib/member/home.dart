@@ -223,108 +223,112 @@ class _HomeState extends State<Home> {
     showDialog(
       context: context,
       barrierDismissible: false,
+      barrierColor: Colors.black.withOpacity(0.5),
       builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              backgroundColor: const Color(0xFFF5F5F7),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-              title: const Text(
-                'Please Select Your Table Number',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
+        return BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
+          child: StatefulBuilder(
+            builder: (context, setDialogState) {
+              return Dialog(
+                backgroundColor: const Color(0xFFF5F5F7),
+                insetPadding: const EdgeInsets.symmetric(horizontal: 100),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
                 ),
-              ),
-              content: SizedBox(
-                width: double.maxFinite,
-                height: 250,
-                child: ListView.builder(
-                  itemCount: 14,
-                  itemBuilder: (context, index) {
-                    final tableNumber = index + 1;
-                    final isSelected = selectedTable == tableNumber;
-                    return GestureDetector(
-                      onTap: () {
-                        setDialogState(() {
-                          selectedTable = tableNumber;
-                        });
-                      },
-                      child: Container(
-                        width: double.infinity,
-                        height: 50,
-                        margin: const EdgeInsets.only(bottom: 8),
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? const Color(0xFFCF0000)
-                              : Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: isSelected
-                                ? const Color(0xFFCF0000)
-                                : Colors.grey.withOpacity(0.3),
-                            width: 1,
-                          ),
-                        ),
-                        child: Center(
-                          child: Text(
-                            '$tableNumber',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: isSelected ? Colors.white : Colors.black,
-                            ),
-                          ),
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text(
+                        'Select Your Table Number',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black,
                         ),
                       ),
-                    );
-                  },
-                ),
-              ),
-              actions: [
-                // Cancel button
-                TextButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    setState(() => _selectedIndex = 0);
-                  },
-                  child: const Text(
-                    'Cancel',
-                    style: TextStyle(color: Colors.grey),
+                      const SizedBox(height: 16),
+
+                      //Table No Scrollable list
+                      SizedBox(
+                        width: 200,
+                        height: 250,
+                        child: ListView.builder(
+                          itemCount: 14,
+                          itemBuilder: (context,index){
+                            final tableNumber = index + 1;
+                            final isSelected = selectedTable == tableNumber;
+                            return GestureDetector(
+                              onTap: () => setDialogState(() => selectedTable = tableNumber),
+                              child: Container(
+                                height: 40,
+                                margin: const EdgeInsets.only(bottom: 6),
+                                decoration: BoxDecoration(
+                                  color: isSelected ? const Color(0xFFCF0000) : Colors.white,
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                    color: isSelected ? const Color(0xFFCF0000) : Colors.grey.withOpacity(0.3),
+                                    width: 1,
+                                  ),
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    '$tableNumber',
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.bold,
+                                      color: isSelected ? Colors.white : Colors.black,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      Row(
+                        mainAxisAlignment: .end,
+                        children: [
+                          TextButton(
+                            onPressed: () {
+                              Navigator.pop(context);
+                              setState(() => _selectedIndex = 0);
+                            },
+                            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+                          ),
+                          ElevatedButton(
+                            onPressed: selectedTable == null
+                                ? null
+                                : () {
+                              Navigator.pop(context);
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (_) => const Menu()),
+                              ).then((_) {
+                                setState(() => _selectedIndex = 0);
+                              });
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFCF0000),
+                              disabledBackgroundColor: Colors.grey.withOpacity(0.3),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(50),
+                              ),
+                            ),
+                            child: const Text('Confirm', style: TextStyle(color: Colors.white)),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
-                // Confirm button
-                ElevatedButton(
-                  onPressed: selectedTable == null
-                      ? null
-                      : () {
-                    Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const Menu()),
-                    ).then((_) {
-                      setState(() => _selectedIndex = 0);
-                    });
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFCF0000),
-                    disabledBackgroundColor: Colors.grey.withOpacity(0.3),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(50),
-                    ),
-                  ),
-                  child: const Text(
-                    'Confirm',
-                    style: TextStyle(color: Colors.white),
-                  ),
-                ),
-              ],
-            );
-          },
+              );
+            },
+          ),
         );
       },
     );
