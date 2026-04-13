@@ -35,177 +35,30 @@ class _MenuState extends State<Menu> {
     'Beverage',
   ];
 
+  // Replace with Supabase data later
   final Map<String, List<MenuItem>> menuItems = {
     'Set': [
       MenuItem(
         name: 'Set A',
         price: 49.90,
         description:
-            'Taiwanese-style combo set featuring savory braised rice, traditional noodles, crispy pastries, and refreshing signature drinks.',
+        'Taiwanese-style combo set featuring savory braised rice, traditional noodles, crispy pastries, and refreshing signature drinks.',
         imageUrl:
-            'https://images.unsplash.com/photo-1569050467447-ce54b3bbc37d?w=200',
+        'https://images.unsplash.com/photo-1569050467447-ce54b3bbc37d?w=200',
       ),
       MenuItem(
         name: 'Set B',
         price: 20.90,
         description:
-            'Steamed rice topped with fragrant braised minced pork cooked in a rich soy-based sauce, served with tofu, egg, and fresh vegetables.',
+        'Steamed rice topped with fragrant braised minced pork cooked in a rich soy-based sauce, served with tofu, egg, and fresh vegetables.',
         imageUrl:
-            'https://images.unsplash.com/photo-1617093727343-374698b1b08d?w=200',
+        'https://images.unsplash.com/photo-1617093727343-374698b1b08d?w=200',
       ),
     ],
-    'Rice': [
-      MenuItem(
-        name: 'Lu Rou Fan',
-        price: 13.90,
-        description:
-            'Tender braised pork cubes slow-cooked in flavorful soy sauce served over fluffy rice, paired with marinated egg and fresh greens for a balanced and hearty meal.',
-        imageUrl:
-            'https://images.unsplash.com/photo-1603133872878-684f208fb84b?w=200',
-      ),
-      MenuItem(
-        name: 'Braised Pork Rice',
-        price: 13.90,
-        description:
-            'Fragrant steamed rice topped with tender braised pork slow-cooked in savory soy sauce, served with marinated egg and fresh vegetables for a rich and satisfying traditional Taiwanese meal.',
-        imageUrl:
-            'https://images.unsplash.com/photo-1512058564366-18510be2db19?w=200',
-      ),
-      MenuItem(
-        name: 'Minced Pork Rice',
-        price: 11.90,
-        description:
-            'Classic Taiwanese comfort food with seasoned minced pork served over steamed white rice with pickled vegetables.',
-        imageUrl:
-            'https://images.unsplash.com/photo-1563245372-f21724e3856d?w=200',
-      ),
-      MenuItem(
-        name: 'Taiwanese Sticky Rice',
-        price: 11.90,
-        description:
-            'Traditional glutinous rice cooked with mushrooms, dried shrimp, and savory toppings for a rich and filling meal.',
-        imageUrl:
-            'https://images.unsplash.com/photo-1516684732162-798a0062be99?w=200',
-      ),
-    ],
-    'Noodle': [
-      MenuItem(
-        name: 'Taiwanese Beef Noodle',
-        price: 16.90,
-        description:
-            'Rich and hearty beef broth with tender slow-braised beef chunks and springy noodles, a Taiwanese classic.',
-        imageUrl:
-            'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=200',
-      ),
-      MenuItem(
-        name: 'Instant Pot Taiwanese Noodle',
-        price: 14.90,
-        description:
-            'Smooth and flavorful noodles cooked in a savory broth with tender pork and fresh garnishes.',
-        imageUrl:
-            'https://images.unsplash.com/photo-1585032226651-759b368d7246?w=200',
-      ),
-      MenuItem(
-        name: "Mom's Dry Noodle",
-        price: 12.90,
-        description:
-            'Homestyle dry tossed noodles with a secret sauce, minced pork, and spring onions — just like home cooking.',
-        imageUrl:
-            'https://images.unsplash.com/photo-1552611052-33e04de081de?w=200',
-      ),
-      MenuItem(
-        name: 'Braised Pork Belly Noodle',
-        price: 15.90,
-        description:
-            'Springy noodles topped with melt-in-your-mouth braised pork belly slow-cooked in a rich and aromatic soy broth.',
-        imageUrl:
-            'https://images.unsplash.com/photo-1534482421-64566f976cfa?w=200',
-      ),
-    ],
-    'Western Food': [
-      MenuItem(
-        name: 'Chicken Chop',
-        price: 17.90,
-        description:
-            'Crispy golden chicken chop served with coleslaw, fries, and a rich mushroom or black pepper sauce.',
-        imageUrl:
-            'https://images.unsplash.com/photo-1532550907401-a500c9a57435?w=200',
-      ),
-      MenuItem(
-        name: 'Fish & Chips',
-        price: 16.90,
-        description:
-            'Golden battered fish fillet served with crispy fries, coleslaw, and tartar sauce on the side.',
-        imageUrl:
-            'https://images.unsplash.com/photo-1619895862022-09114b41f16f?w=200',
-      ),
-      MenuItem(
-        name: 'Crispy Chicken',
-        price: 15.90,
-        description:
-            'Juicy fried chicken with an extra crispy coating, served with fries and honey mustard dipping sauce.',
-        imageUrl:
-            'https://images.unsplash.com/photo-1562967914-608f82629710?w=200',
-      ),
-      MenuItem(
-        name: 'Classic Hash Burger',
-        price: 16.90,
-        description:
-            'Juicy beef patty with crispy hash brown, fresh lettuce, tomato, cheese, and signature sauce in a toasted bun.',
-        imageUrl:
-            'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=200',
-      ),
-    ],
-    'Beverage': [
-      MenuItem(
-        name: 'Soya Bean with Grass Jelly',
-        price: 5.90,
-        description:
-            'Smooth and refreshing homemade soya bean drink topped with silky grass jelly cubes.',
-        imageUrl:
-            'https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=200',
-      ),
-      MenuItem(
-        name: 'Milk Tea',
-        price: 6.90,
-        description:
-            'Creamy and aromatic milk tea brewed with premium black tea leaves and fresh milk.',
-        imageUrl:
-            'https://images.unsplash.com/photo-1558857563-b371033873b8?w=200',
-      ),
-      MenuItem(
-        name: 'Lemon Black Tea',
-        price: 5.90,
-        description:
-            'Refreshing black tea with a squeeze of fresh lemon, served chilled for a tangy and uplifting drink.',
-        imageUrl:
-            'https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=200',
-      ),
-      MenuItem(
-        name: 'Orange Juice',
-        price: 6.90,
-        description:
-            'Freshly squeezed orange juice packed with natural vitamins, served chilled and full of fruity goodness.',
-        imageUrl:
-            'https://images.unsplash.com/photo-1621263764928-df1444c5e859?w=200',
-      ),
-      MenuItem(
-        name: 'Ice Lemon Tea',
-        price: 5.50,
-        description:
-            'Classic iced lemon tea with the perfect balance of sweetness and citrus, served over crushed ice.',
-        imageUrl:
-            'https://images.unsplash.com/photo-1499638673689-79a0b5115d87?w=200',
-      ),
-      MenuItem(
-        name: 'Kopi-O',
-        price: 4.50,
-        description:
-            'Traditional Malaysian black coffee brewed strong and bold, served hot or iced with a rich aromatic finish.',
-        imageUrl:
-            'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=200',
-      ),
-    ],
+    'Rice': [],
+    'Noodle': [],
+    'Western Food': [],
+    'Beverage': [],
   };
 
   final ScrollController _scrollController = ScrollController();
@@ -246,7 +99,7 @@ class _MenuState extends State<Menu> {
       final key = _categoryKeys[category];
       if (key?.currentContext != null) {
         final RenderBox renderBox =
-            key!.currentContext!.findRenderObject() as RenderBox;
+        key!.currentContext!.findRenderObject() as RenderBox;
         final position = renderBox.localToGlobal(Offset.zero);
 
         if (position.dy <= 150 && position.dy > 0) {
@@ -285,7 +138,7 @@ class _MenuState extends State<Menu> {
   void _showCategoryBottomSheet() {
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF5F5F7),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -294,30 +147,238 @@ class _MenuState extends State<Menu> {
           padding: const EdgeInsets.symmetric(vertical: 30, horizontal: 16),
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            children: categories.map((category) {
-              return ListTile(
-                title: Text(
-                  category,
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: selectedCategory == category
-                        ? const Color(0xFFCF0000)
-                        : Colors.black,
-                    fontWeight: selectedCategory == category
-                        ? FontWeight.w600
-                        : FontWeight.normal,
+            children: [
+              Container(
+                width: 50,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 20),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFDDDDDD),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              //Spread individual widget
+              ...categories.map((category) {
+                return ListTile(
+                  title: Text(
+                    category,
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: selectedCategory == category
+                          ? const Color(0xFFCF0000)
+                          : Colors.black,
+                      fontWeight: selectedCategory == category
+                          ? FontWeight.w600
+                          : FontWeight.normal,
+                    ),
+                  ),
+                  onTap: () {
+                    setState(() {
+                      selectedCategory = category;
+                    });
+                    Navigator.pop(context);
+                    _scrollToCategory(category);
+                  },
+                );
+              }).toList(),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showItemDetail(MenuItem item) {
+    int quantity = 1;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFFF5F5F7),
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Image with drag handle overlaid on top
+                Stack(
+                  children: [
+                    ClipRRect(
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(20),
+                      ),
+                      child: Image.network(
+                        item.imageUrl,
+                        width: double.infinity,
+                        height: 250,
+                        fit: BoxFit.cover,
+                        loadingBuilder: (context, child, loadingProgress) {
+                          return SizedBox(
+                            width: double.infinity,
+                            height: 250,
+                            child: loadingProgress == null
+                                ? child
+                                : Container(color: const Color(0xFFEEEEEE)),
+                          );
+                        },
+                      ),
+                    ),
+                    Positioned(
+                      top: 10,
+                      left: 0,
+                      right: 0,
+                      child: Center(
+                        child: Container(
+                          width: 50,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.8),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+
+                // Content
+                Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Food name
+                      Text(
+                        item.name,
+                        style: const TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+
+                      const SizedBox(height: 6),
+
+                      // Price
+                      Text(
+                        'RM ${item.price.toStringAsFixed(2)}',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+
+                      const SizedBox(height: 10),
+
+                      // Description
+                      Text(
+                        item.description,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey,
+                        ),
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // Quantity + Add to cart row
+                      Row(
+                        children: [
+                          // Quantity selector - Liquid Glass
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(50),
+                            child: BackdropFilter(
+                              filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.6),
+                                  borderRadius: BorderRadius.circular(50),
+                                  border: Border.all(
+                                    color: Colors.white.withOpacity(0.8),
+                                    width: 1,
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    // Minus button
+                                    IconButton(
+                                      onPressed: () {
+                                        if (quantity > 1) {
+                                          setModalState(() {
+                                            quantity--;
+                                          });
+                                        }
+                                      },
+                                      icon: const Icon(Icons.remove),
+                                    ),
+
+                                    // Quantity number
+                                    SizedBox(
+                                      width: 32,
+                                      child: Text(
+                                        '$quantity',
+                                        textAlign: TextAlign.center,
+                                        style: const TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+
+                                    // Plus button
+                                    IconButton(
+                                      onPressed: () {
+                                        setModalState(() {
+                                          quantity++;
+                                        });
+                                      },
+                                      icon: const Icon(Icons.add),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+
+                          const SizedBox(width: 16),
+
+                          // Add to cart button
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: () {
+                                Navigator.pop(context);
+                                // TODO: Add to cart logic here
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFFCF0000),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 16,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(50),
+                                ),
+                              ),
+                              child: const Text(
+                                'Add to cart',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
-                onTap: () {
-                  setState(() {
-                    selectedCategory = category;
-                  });
-                  Navigator.pop(context);
-                  _scrollToCategory(category);
-                },
-              );
-            }).toList(),
-          ),
+              ],
+            );
+          },
         );
       },
     );
@@ -339,52 +400,71 @@ class _MenuState extends State<Menu> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Back Button
+              // Back Button - Liquid Glass
               Padding(
                 padding: const EdgeInsets.all(16.0),
-                child: ClipOval(
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                    child: Container(
-                      width: 54,
-                      height: 54,
-                      decoration: const BoxDecoration(
-                        color: Color.fromRGBO(255, 255, 255, 0.6),
-                        shape: BoxShape.circle,
+                child: GestureDetector(
+                  onTap: () {
+                    Navigator.pop(context);
+                  },
+                  child: ClipOval(
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                      child: Container(
+                        width: 54,
+                        height: 54,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.6),
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: Colors.white.withOpacity(0.8),
+                            width: 1,
+                          ),
+                        ),
+                        child: const Icon(Icons.arrow_back, color: Colors.black),
                       ),
-                      child: const Icon(Icons.arrow_back, color: Colors.black),
                     ),
                   ),
                 ),
               ),
 
-              // Dropdown
+              // Dropdown - Liquid Glass
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
                 child: GestureDetector(
                   onTap: _showCategoryBottomSheet,
-                  child: Container(
-                    width: 220,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16.0,
-                      vertical: 12.0,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color.fromRGBO(255, 255, 255, 0.6),
-                      borderRadius: BorderRadius.circular(50),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          selectedCategory,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(50),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                      child: Container(
+                        width: 220,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16.0,
+                          vertical: 12.0,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.6),
+                          borderRadius: BorderRadius.circular(50),
+                          border: Border.all(
+                            color: Colors.white.withOpacity(0.8),
+                            width: 1,
                           ),
                         ),
-                        const Icon(Icons.keyboard_arrow_down),
-                      ],
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              selectedCategory,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const Icon(Icons.keyboard_arrow_down),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -395,7 +475,7 @@ class _MenuState extends State<Menu> {
                 child: ListView(
                   controller: _scrollController,
                   physics: const BouncingScrollPhysics(),
-                  padding: const EdgeInsets.only(bottom: 500), // ADD THIS LINE
+                  padding: EdgeInsets.zero,
                   children: categories.map((category) {
                     final items = menuItems[category] ?? [];
                     return Column(
@@ -419,78 +499,168 @@ class _MenuState extends State<Menu> {
                           ),
                         ),
 
+                        // Empty content with skeleton first
+                        if (items.isEmpty)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16.0,
+                              vertical: 12.0,
+                            ),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Left placeholder
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                    CrossAxisAlignment.start,
+                                    children: [
+                                      // Name placeholder
+                                      Container(
+                                        width: 120,
+                                        height: 16,
+                                        decoration: const BoxDecoration(
+                                          color: Color(0xFFEEEEEE),
+                                          borderRadius: BorderRadius.all(
+                                            Radius.circular(4),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      // Price placeholder
+                                      Container(
+                                        width: 60,
+                                        height: 14,
+                                        decoration: const BoxDecoration(
+                                          color: Color(0xFFEEEEEE),
+                                          borderRadius: BorderRadius.all(
+                                            Radius.circular(4),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      // Description line 1
+                                      Container(
+                                        width: double.infinity,
+                                        height: 12,
+                                        decoration: const BoxDecoration(
+                                          color: Color(0xFFEEEEEE),
+                                          borderRadius: BorderRadius.all(
+                                            Radius.circular(4),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      // Description line 2
+                                      Container(
+                                        width: 150,
+                                        height: 12,
+                                        decoration: const BoxDecoration(
+                                          color: Color(0xFFEEEEEE),
+                                          borderRadius: BorderRadius.all(
+                                            Radius.circular(4),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                // Image placeholder
+                                Container(
+                                  width: 110,
+                                  height: 110,
+                                  decoration: const BoxDecoration(
+                                    color: Color(0xFFEEEEEE),
+                                    borderRadius: BorderRadius.all(
+                                      Radius.circular(12),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
                         // Items under this category
                         ...items.map((item) {
                           return Column(
                             children: [
-                              Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16.0,
-                                  vertical: 12.0,
-                                ),
-                                child: Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    // Left side - text
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            item.name,
-                                            style: const TextStyle(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.bold,
+                              GestureDetector(
+                                onTap: () => _showItemDetail(item),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16.0,
+                                    vertical: 12.0,
+                                  ),
+                                  child: Row(
+                                    crossAxisAlignment:
+                                    CrossAxisAlignment.start,
+                                    children: [
+                                      // Left side - text
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              item.name,
+                                              style: const TextStyle(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.bold,
+                                              ),
                                             ),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            'RM ${item.price.toStringAsFixed(2)}',
-                                            style: const TextStyle(
-                                              fontSize: 14,
-                                              fontWeight: FontWeight.w500,
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              'RM ${item.price.toStringAsFixed(2)}',
+                                              style: const TextStyle(
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w500,
+                                              ),
                                             ),
-                                          ),
-                                          const SizedBox(height: 6),
-                                          Text(
-                                            item.description,
-                                            style: const TextStyle(
-                                              fontSize: 13,
-                                              color: Colors.grey,
+                                            const SizedBox(height: 6),
+                                            Text(
+                                              item.description,
+                                              style: const TextStyle(
+                                                fontSize: 13,
+                                                color: Colors.grey,
+                                              ),
                                             ),
-                                          ),
-                                        ],
+                                          ],
+                                        ),
                                       ),
-                                    ),
 
-                                    const SizedBox(width: 12),
+                                      const SizedBox(width: 12),
 
-                                    // Right side - image with fixed placeholder
-                                    ClipRRect(
-                                      borderRadius: BorderRadius.circular(12),
-                                      child: Image.network(
-                                        item.imageUrl,
-                                        width: 110,
-                                        height: 110,
-                                        fit: BoxFit.cover,
-                                        loadingBuilder:
-                                            (context, child, loadingProgress) {
-                                              return SizedBox(
-                                                width: 110,
-                                                height: 110,
-                                                child: loadingProgress == null
-                                                    ? child
-                                                    : Container(
-                                                        color: const Color(
-                                                          0xFFEEEEEE,
-                                                        ),
-                                                      ),
-                                              );
-                                            },
+                                      // Right side - image with fixed placeholder
+                                      ClipRRect(
+                                        borderRadius: BorderRadius.circular(12),
+                                        child: Image.network(
+                                          item.imageUrl,
+                                          width: 110,
+                                          height: 110,
+                                          fit: BoxFit.cover,
+                                          loadingBuilder:
+                                              (
+                                              context,
+                                              child,
+                                              loadingProgress,
+                                              ) {
+                                            return SizedBox(
+                                              width: 110,
+                                              height: 110,
+                                              child: loadingProgress == null
+                                                  ? child
+                                                  : Container(
+                                                color: const Color(
+                                                  0xFFEEEEEE,
+                                                ),
+                                              ),
+                                            );
+                                          },
+                                        ),
                                       ),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
                               ),
                               const Divider(
