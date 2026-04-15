@@ -5,9 +5,14 @@ import 'member/menu.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 const String supabaseUrl = 'https://rqpcdmzttshzlwdrodiy.supabase.co';
-const String supabaseKey = 'key';
+const String supabaseKey = 'sb_secret_iNEO1r2eTBQVSh-cs9SkCw_EARTiR4M';
 
-void main() {
+void main() async{
+  WidgetsFlutterBinding.ensureInitialized();
+  await Supabase.initialize(
+      url: supabaseUrl,
+      anonKey: supabaseKey
+  );
   runApp(const MyApp());
 }
 

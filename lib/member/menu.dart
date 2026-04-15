@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'dart:ui';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class MenuItem {
   final String name;
@@ -17,7 +18,8 @@ class MenuItem {
 }
 
 class Menu extends StatefulWidget {
-  const Menu({super.key});
+  final String initialCategory;
+  const Menu({super.key, this.initialCategory = 'Set'});
 
   @override
   State<Menu> createState() => _MenuState();
@@ -26,6 +28,11 @@ class Menu extends StatefulWidget {
 class _MenuState extends State<Menu> {
   String selectedCategory = 'Set';
   bool _isScrollingFromTap = false;
+  bool _isLoading = true;
+
+  // Fixed heights — every item is exactly this tall so math is always accurate
+  static const double _itemHeight = 135.0;
+  static const double _headerHeight = 63.0;
 
   List<String> categories = [
     'Set',
@@ -35,61 +42,145 @@ class _MenuState extends State<Menu> {
     'Beverage',
   ];
 
-  // Replace with Supabase data later
-  final Map<String, List<MenuItem>> menuItems = {
-    'Set': [
-      MenuItem(
-        name: 'Set A',
-        price: 49.90,
-        description:
-        'Taiwanese-style combo set featuring savory braised rice, traditional noodles, crispy pastries, and refreshing signature drinks.',
-        imageUrl:
-        'https://images.unsplash.com/photo-1569050467447-ce54b3bbc37d?w=200',
-      ),
-      MenuItem(
-        name: 'Set B',
-        price: 20.90,
-        description:
-        'Steamed rice topped with fragrant braised minced pork cooked in a rich soy-based sauce, served with tofu, egg, and fresh vegetables.',
-        imageUrl:
-        'https://images.unsplash.com/photo-1617093727343-374698b1b08d?w=200',
-      ),
-    ],
+  Map<String, List<MenuItem>> menuItems = {
+    'Set': [],
     'Rice': [],
     'Noodle': [],
     'Western Food': [],
     'Beverage': [],
   };
 
+  Future<void> _fetchMenuItems() async {
+    try {
+      print('Fetching menu items...');
+      final response = await Supabase.instance.client
+          .from('product')
+          .select()
+          .eq('is_available', true)
+          .order('created_at', ascending: true);
+
+      print('Response: $response');
+
+      final Map<String, List<MenuItem>> fetchedItems = {
+        'Set': [],
+        'Rice': [],
+        'Noodle': [],
+        'Western Food': [],
+        'Beverage': [],
+      };
+
+      for (final item in response) {
+        final category = item['category'] as String;
+        print('Item: ${item['name']} - Category: $category');
+        if (fetchedItems.containsKey(category)) {
+          fetchedItems[category]!.add(
+            MenuItem(
+              name: item['name'] ?? '',
+              price: (item['price'] as num).toDouble(),
+              description: item['description'] ?? '',
+              imageUrl: item['image_url'] ?? '',
+            ),
+          );
+        }
+      }
+
+      setState(() {
+        menuItems = fetchedItems;
+        _isLoading = false;
+      });
+    } catch (e) {
+      print('Error fetching menu items: $e');
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Widget _buildImage(String imageUrl,
+      {double width = 110, double height = 110}) {
+    if (imageUrl.isEmpty) {
+      return Container(
+        width: width,
+        height: height,
+        color: const Color(0xFFEEEEEE),
+      );
+    }
+    if (imageUrl.startsWith('http')) {
+      return Image.network(
+        imageUrl,
+        width: width,
+        height: height,
+        fit: BoxFit.cover,
+        loadingBuilder: (context, child, loadingProgress) {
+          return SizedBox(
+            width: width,
+            height: height,
+            child: loadingProgress == null
+                ? child
+                : Container(color: const Color(0xFFEEEEEE)),
+          );
+        },
+        errorBuilder: (context, error, stackTrace) {
+          return Container(
+            width: width,
+            height: height,
+            color: const Color(0xFFEEEEEE),
+          );
+        },
+      );
+    } else {
+      return Image.asset(
+        'assets/images/$imageUrl',
+        width: width,
+        height: height,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          print('Asset error: $error for $imageUrl');
+          return Container(
+            width: width,
+            height: height,
+            color: const Color(0xFFEEEEEE),
+          );
+        },
+      );
+    }
+  }
+
   final ScrollController _scrollController = ScrollController();
 
-  final Map<String, GlobalKey<State<StatefulWidget>>> _categoryKeys = {
-    'Set': GlobalKey<State<StatefulWidget>>(),
-    'Rice': GlobalKey<State<StatefulWidget>>(),
-    'Noodle': GlobalKey<State<StatefulWidget>>(),
-    'Western Food': GlobalKey<State<StatefulWidget>>(),
-    'Beverage': GlobalKey<State<StatefulWidget>>(),
-  };
-
-  //When click menu category it will start from the selected category header
-  final Map<String, double> _categoryOffsets = {
-    'Set': 0.0,
-    'Rice': 355.0,
-    'Noodle': 1020.0,
-    'Western Food': 1625.0,
-    'Beverage': 2230.0,
+  final Map<String, GlobalKey> _categoryKeys = {
+    'Set': GlobalKey(),
+    'Rice': GlobalKey(),
+    'Noodle': GlobalKey(),
+    'Western Food': GlobalKey(),
+    'Beverage': GlobalKey(),
   };
 
   @override
   void initState() {
     super.initState();
+    selectedCategory = widget.initialCategory;
     _scrollController.addListener(_onScroll);
+    _fetchMenuItems().then((_) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _scrollToCategory(widget.initialCategory);
+      });
+    });
   }
 
   @override
   void dispose() {
     _scrollController.dispose();
     super.dispose();
+  }
+
+  // Calculate scroll offset by summing heights of all categories before target
+  double _getOffsetForCategory(String category) {
+    double offset = 0;
+    for (final cat in categories) {
+      if (cat == category) break;
+      final count = menuItems[cat]?.length ?? 0;
+      offset += _headerHeight + (count * _itemHeight);
+    }
+    return offset;
   }
 
   void _onScroll() {
@@ -102,7 +193,7 @@ class _MenuState extends State<Menu> {
         key!.currentContext!.findRenderObject() as RenderBox;
         final position = renderBox.localToGlobal(Offset.zero);
 
-        if (position.dy <= 150 && position.dy > 0) {
+        if (position.dy <= 160 && position.dy > 0) {
           if (selectedCategory != category) {
             setState(() {
               selectedCategory = category;
@@ -114,17 +205,19 @@ class _MenuState extends State<Menu> {
   }
 
   void _scrollToCategory(String category) {
-    _isScrollingFromTap = true;
+    if (!_scrollController.hasClients) return;
 
+    _isScrollingFromTap = true;
     setState(() {
       selectedCategory = category;
     });
 
-    final offset = _categoryOffsets[category] ?? 0.0;
+    final targetOffset = _getOffsetForCategory(category)
+        .clamp(0.0, _scrollController.position.maxScrollExtent);
 
     _scrollController
         .animateTo(
-      offset.clamp(0.0, _scrollController.position.maxScrollExtent),
+      targetOffset,
       duration: const Duration(milliseconds: 400),
       curve: Curves.easeOutCubic,
     )
@@ -157,7 +250,6 @@ class _MenuState extends State<Menu> {
                   borderRadius: BorderRadius.circular(10),
                 ),
               ),
-              //Spread individual widget
               ...categories.map((category) {
                 return ListTile(
                   title: Text(
@@ -204,27 +296,16 @@ class _MenuState extends State<Menu> {
             return Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Image with drag handle overlaid on top
                 Stack(
                   children: [
                     ClipRRect(
                       borderRadius: const BorderRadius.vertical(
                         top: Radius.circular(20),
                       ),
-                      child: Image.network(
+                      child: _buildImage(
                         item.imageUrl,
                         width: double.infinity,
-                        height: 250,
-                        fit: BoxFit.cover,
-                        loadingBuilder: (context, child, loadingProgress) {
-                          return SizedBox(
-                            width: double.infinity,
-                            height: 250,
-                            child: loadingProgress == null
-                                ? child
-                                : Container(color: const Color(0xFFEEEEEE)),
-                          );
-                        },
+                        height: 300,
                       ),
                     ),
                     Positioned(
@@ -244,14 +325,11 @@ class _MenuState extends State<Menu> {
                     ),
                   ],
                 ),
-
-                // Content
                 Padding(
                   padding: const EdgeInsets.all(20.0),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Food name
                       Text(
                         item.name,
                         style: const TextStyle(
@@ -259,10 +337,7 @@ class _MenuState extends State<Menu> {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-
                       const SizedBox(height: 6),
-
-                      // Price
                       Text(
                         'RM ${item.price.toStringAsFixed(2)}',
                         style: const TextStyle(
@@ -270,10 +345,7 @@ class _MenuState extends State<Menu> {
                           fontWeight: FontWeight.w500,
                         ),
                       ),
-
                       const SizedBox(height: 10),
-
-                      // Description
                       Text(
                         item.description,
                         style: const TextStyle(
@@ -281,17 +353,14 @@ class _MenuState extends State<Menu> {
                           color: Colors.grey,
                         ),
                       ),
-
                       const SizedBox(height: 24),
-
-                      // Quantity + Add to cart row
                       Row(
                         children: [
-                          // Quantity selector - Liquid Glass
                           ClipRRect(
                             borderRadius: BorderRadius.circular(50),
                             child: BackdropFilter(
-                              filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                              filter:
+                              ImageFilter.blur(sigmaX: 20, sigmaY: 20),
                               child: Container(
                                 decoration: BoxDecoration(
                                   color: Colors.white.withOpacity(0.6),
@@ -303,19 +372,14 @@ class _MenuState extends State<Menu> {
                                 ),
                                 child: Row(
                                   children: [
-                                    // Minus button
                                     IconButton(
                                       onPressed: () {
                                         if (quantity > 1) {
-                                          setModalState(() {
-                                            quantity--;
-                                          });
+                                          setModalState(() => quantity--);
                                         }
                                       },
                                       icon: const Icon(Icons.remove),
                                     ),
-
-                                    // Quantity number
                                     SizedBox(
                                       width: 32,
                                       child: Text(
@@ -327,13 +391,9 @@ class _MenuState extends State<Menu> {
                                         ),
                                       ),
                                     ),
-
-                                    // Plus button
                                     IconButton(
                                       onPressed: () {
-                                        setModalState(() {
-                                          quantity++;
-                                        });
+                                        setModalState(() => quantity++);
                                       },
                                       icon: const Icon(Icons.add),
                                     ),
@@ -342,10 +402,7 @@ class _MenuState extends State<Menu> {
                               ),
                             ),
                           ),
-
                           const SizedBox(width: 16),
-
-                          // Add to cart button
                           Expanded(
                             child: ElevatedButton(
                               onPressed: () {
@@ -354,9 +411,8 @@ class _MenuState extends State<Menu> {
                               },
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFFCF0000),
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 16,
-                                ),
+                                padding:
+                                const EdgeInsets.symmetric(vertical: 16),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(50),
                                 ),
@@ -400,13 +456,11 @@ class _MenuState extends State<Menu> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Back Button - Liquid Glass
+              // Back Button
               Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: GestureDetector(
-                  onTap: () {
-                    Navigator.pop(context);
-                  },
+                  onTap: () => Navigator.pop(context),
                   child: ClipOval(
                     child: BackdropFilter(
                       filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
@@ -428,7 +482,7 @@ class _MenuState extends State<Menu> {
                 ),
               ),
 
-              // Dropdown - Liquid Glass
+              // Dropdown
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
                 child: GestureDetector(
@@ -470,212 +524,192 @@ class _MenuState extends State<Menu> {
                 ),
               ),
 
-              // Scrollable list of ALL categories
-              Expanded(
-                child: ListView(
-                  controller: _scrollController,
-                  physics: const BouncingScrollPhysics(),
-                  padding: EdgeInsets.zero,
-                  children: categories.map((category) {
-                    final items = menuItems[category] ?? [];
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Section Header with GlobalKey
-                        Padding(
-                          key: _categoryKeys[category],
-                          padding: const EdgeInsets.only(
-                            left: 16.0,
-                            top: 24.0,
-                            bottom: 8.0,
-                          ),
-                          child: Text(
-                            category,
-                            style: const TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFFCF0000),
-                            ),
-                          ),
-                        ),
-
-                        // Empty content with skeleton first
-                        if (items.isEmpty)
+              // Loading or List
+              if (_isLoading)
+                const Expanded(
+                  child: Center(
+                    child: CircularProgressIndicator(
+                      color: Color(0xFFCF0000),
+                    ),
+                  ),
+                )
+              else
+                Expanded(
+                  child: ListView(
+                    controller: _scrollController,
+                    physics: const BouncingScrollPhysics(),
+                    padding: EdgeInsets.zero,
+                    children: categories.map((category) {
+                      final items = menuItems[category] ?? [];
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Category header
                           Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16.0,
-                              vertical: 12.0,
+                            key: _categoryKeys[category],
+                            padding: const EdgeInsets.only(
+                              left: 16.0,
+                              top: 24.0,
+                              bottom: 8.0,
                             ),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // Left placeholder
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                    CrossAxisAlignment.start,
-                                    children: [
-                                      // Name placeholder
-                                      Container(
-                                        width: 120,
-                                        height: 16,
-                                        decoration: const BoxDecoration(
-                                          color: Color(0xFFEEEEEE),
-                                          borderRadius: BorderRadius.all(
-                                            Radius.circular(4),
+                            child: Text(
+                              category,
+                              style: const TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFFCF0000),
+                              ),
+                            ),
+                          ),
+
+                          if (items.isEmpty)
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16.0,
+                                vertical: 12.0,
+                              ),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                      children: [
+                                        Container(
+                                          width: 120,
+                                          height: 16,
+                                          decoration: const BoxDecoration(
+                                            color: Color(0xFFEEEEEE),
+                                            borderRadius: BorderRadius.all(
+                                                Radius.circular(4)),
                                           ),
                                         ),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      // Price placeholder
-                                      Container(
-                                        width: 60,
-                                        height: 14,
-                                        decoration: const BoxDecoration(
-                                          color: Color(0xFFEEEEEE),
-                                          borderRadius: BorderRadius.all(
-                                            Radius.circular(4),
+                                        const SizedBox(height: 8),
+                                        Container(
+                                          width: 60,
+                                          height: 14,
+                                          decoration: const BoxDecoration(
+                                            color: Color(0xFFEEEEEE),
+                                            borderRadius: BorderRadius.all(
+                                                Radius.circular(4)),
                                           ),
                                         ),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      // Description line 1
-                                      Container(
-                                        width: double.infinity,
-                                        height: 12,
-                                        decoration: const BoxDecoration(
-                                          color: Color(0xFFEEEEEE),
-                                          borderRadius: BorderRadius.all(
-                                            Radius.circular(4),
+                                        const SizedBox(height: 8),
+                                        Container(
+                                          width: double.infinity,
+                                          height: 12,
+                                          decoration: const BoxDecoration(
+                                            color: Color(0xFFEEEEEE),
+                                            borderRadius: BorderRadius.all(
+                                                Radius.circular(4)),
                                           ),
                                         ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      // Description line 2
-                                      Container(
-                                        width: 150,
-                                        height: 12,
-                                        decoration: const BoxDecoration(
-                                          color: Color(0xFFEEEEEE),
-                                          borderRadius: BorderRadius.all(
-                                            Radius.circular(4),
+                                        const SizedBox(height: 4),
+                                        Container(
+                                          width: 150,
+                                          height: 12,
+                                          decoration: const BoxDecoration(
+                                            color: Color(0xFFEEEEEE),
+                                            borderRadius: BorderRadius.all(
+                                                Radius.circular(4)),
                                           ),
                                         ),
-                                      ),
-                                    ],
+                                      ],
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(width: 12),
-                                // Image placeholder
-                                Container(
-                                  width: 110,
-                                  height: 110,
-                                  decoration: const BoxDecoration(
-                                    color: Color(0xFFEEEEEE),
-                                    borderRadius: BorderRadius.all(
-                                      Radius.circular(12),
+                                  const SizedBox(width: 12),
+                                  Container(
+                                    width: 110,
+                                    height: 110,
+                                    decoration: const BoxDecoration(
+                                      color: Color(0xFFEEEEEE),
+                                      borderRadius: BorderRadius.all(
+                                          Radius.circular(12)),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                          ...items.map((item) {
+                            return Column(
+                              children: [
+                                SizedBox(
+                                  height: _itemHeight,
+                                  child: GestureDetector(
+                                    onTap: () => _showItemDetail(item),
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 16.0,
+                                        vertical: 12.0,
+                                      ),
+                                      child: Row(
+                                        crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                        children: [
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  item.name,
+                                                  style: const TextStyle(
+                                                    fontSize: 16,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                  maxLines: 1,
+                                                  overflow:
+                                                  TextOverflow.ellipsis,
+                                                ),
+                                                const SizedBox(height: 4),
+                                                Text(
+                                                  'RM ${item.price.toStringAsFixed(2)}',
+                                                  style: const TextStyle(
+                                                    fontSize: 14,
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 6),
+                                                // Description capped at 2 lines
+                                                Text(
+                                                  item.description,
+                                                  style: const TextStyle(
+                                                    fontSize: 13,
+                                                    color: Colors.grey,
+                                                  ),
+                                                  maxLines: 2,
+                                                  overflow:
+                                                  TextOverflow.ellipsis,
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          const SizedBox(width: 12),
+                                          ClipRRect(
+                                            borderRadius:
+                                            BorderRadius.circular(12),
+                                            child: _buildImage(item.imageUrl),
+                                          ),
+                                        ],
+                                      ),
                                     ),
                                   ),
                                 ),
-                              ],
-                            ),
-                          ),
-
-                        // Items under this category
-                        ...items.map((item) {
-                          return Column(
-                            children: [
-                              GestureDetector(
-                                onTap: () => _showItemDetail(item),
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 16.0,
-                                    vertical: 12.0,
-                                  ),
-                                  child: Row(
-                                    crossAxisAlignment:
-                                    CrossAxisAlignment.start,
-                                    children: [
-                                      // Left side - text
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              item.name,
-                                              style: const TextStyle(
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 4),
-                                            Text(
-                                              'RM ${item.price.toStringAsFixed(2)}',
-                                              style: const TextStyle(
-                                                fontSize: 14,
-                                                fontWeight: FontWeight.w500,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 6),
-                                            Text(
-                                              item.description,
-                                              style: const TextStyle(
-                                                fontSize: 13,
-                                                color: Colors.grey,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-
-                                      const SizedBox(width: 12),
-
-                                      // Right side - image with fixed placeholder
-                                      ClipRRect(
-                                        borderRadius: BorderRadius.circular(12),
-                                        child: Image.network(
-                                          item.imageUrl,
-                                          width: 110,
-                                          height: 110,
-                                          fit: BoxFit.cover,
-                                          loadingBuilder:
-                                              (
-                                              context,
-                                              child,
-                                              loadingProgress,
-                                              ) {
-                                            return SizedBox(
-                                              width: 110,
-                                              height: 110,
-                                              child: loadingProgress == null
-                                                  ? child
-                                                  : Container(
-                                                color: const Color(
-                                                  0xFFEEEEEE,
-                                                ),
-                                              ),
-                                            );
-                                          },
-                                        ),
-                                      ),
-                                    ],
-                                  ),
+                                const Divider(
+                                  height: 1,
+                                  thickness: 1,
+                                  color: Color(0xFFEEEEEE),
                                 ),
-                              ),
-                              const Divider(
-                                height: 1,
-                                thickness: 1,
-                                color: Color(0xFFEEEEEE),
-                              ),
-                            ],
-                          );
-                        }).toList(),
-                      ],
-                    );
-                  }).toList(),
+                              ],
+                            );
+                          }).toList(),
+                        ],
+                      );
+                    }).toList(),
+                  ),
                 ),
-              ),
             ],
           ),
         ),
