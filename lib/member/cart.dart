@@ -212,22 +212,17 @@ class _CartState extends State<Cart> {
                                 color: Colors.white,
                                 size: 28),
                           ),
-                          onDismissed: (_) =>
-                              _removeGuestItem(productId),
+                          confirmDismiss: (_) async => true,
+                          onDismissed: (_) {
+                            _removeGuestItem(productId);
+                          },
                           child: Container(
                             margin: const EdgeInsets.only(
                                 bottom: 12),
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.7),
+                              color: const Color(0xFFF5F5F7),
                               borderRadius:
                               BorderRadius.circular(16),
-                              boxShadow: [
-                                BoxShadow(
-                                    color: Colors.black
-                                        .withOpacity(0.06),
-                                    blurRadius: 8,
-                                    offset: const Offset(0, 2))
-                              ],
                             ),
                             child: Padding(
                               padding: const EdgeInsets.all(12),
@@ -322,8 +317,10 @@ class _CartState extends State<Cart> {
                                 color: Colors.white,
                                 size: 28),
                           ),
-                          onDismissed: (_) =>
-                              provider.removeCartItem(item),
+                          confirmDismiss: (_) async => true,
+                          onDismissed: (_) {
+                            provider.removeCartItem(item);
+                          },
                           child: _CartItemCard(
                             item: item,
                             onQtyChanged: (qty) =>
@@ -424,12 +421,12 @@ class _CartBottomPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     return ClipRRect(
       borderRadius:
-      const BorderRadius.vertical(top: Radius.circular(16)),
+      const BorderRadius.vertical(top: Radius.circular(24)),
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
         child: Container(
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.8),
+            color: Colors.white.withOpacity(0.92),
             borderRadius:
             const BorderRadius.vertical(top: Radius.circular(24)),
             boxShadow: [
@@ -531,14 +528,8 @@ class _CartItemCard extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: const Color(0xFFF5F5F7),
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-              color: Colors.black.withOpacity(0.06),
-              blurRadius: 8,
-              offset: const Offset(0, 2))
-        ],
       ),
       child: Padding(
         padding: const EdgeInsets.all(12),
@@ -621,13 +612,36 @@ class _QtyPicker extends StatelessWidget {
     return ClipRRect(
       borderRadius: BorderRadius.circular(50),
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+        filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
         child: Container(
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.6),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Colors.white.withOpacity(0.35),
+                Colors.white.withOpacity(0.15),
+              ],
+            ),
             borderRadius: BorderRadius.circular(50),
             border: Border.all(
-                color: Colors.white.withOpacity(0.8), width: 1),
+              color: Colors.white.withOpacity(0.6),
+              width: 1.2,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.white.withOpacity(0.2),
+                blurRadius: 8,
+                spreadRadius: -2,
+                offset: const Offset(0, -1),
+              ),
+              BoxShadow(
+                color: Colors.black.withOpacity(0.08),
+                blurRadius: 12,
+                spreadRadius: -2,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -636,7 +650,11 @@ class _QtyPicker extends StatelessWidget {
                 onPressed: quantity > minValue
                     ? () => onChanged(quantity - 1)
                     : null,
-                icon: const Icon(Icons.remove, size: 18),
+                icon: Icon(Icons.remove,
+                    size: 18,
+                    color: quantity > minValue
+                        ? Colors.black87
+                        : Colors.black26),
                 padding: const EdgeInsets.all(6),
                 constraints: const BoxConstraints(),
               ),
@@ -645,11 +663,14 @@ class _QtyPicker extends StatelessWidget {
                 child: Text('$quantity',
                     textAlign: TextAlign.center,
                     style: const TextStyle(
-                        fontSize: 15, fontWeight: FontWeight.bold)),
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87)),
               ),
               IconButton(
                 onPressed: () => onChanged(quantity + 1),
-                icon: const Icon(Icons.add, size: 18),
+                icon: const Icon(Icons.add,
+                    size: 18, color: Colors.black87),
                 padding: const EdgeInsets.all(6),
                 constraints: const BoxConstraints(),
               ),
