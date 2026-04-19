@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:ui';
-import 'forgot_password.dart';
+import '../admin/adminPage.dart';
+import 'supabase_service.dart';
+import 'account.dart';
 import 'signup.dart';
 
 class Login extends StatefulWidget {
@@ -14,12 +16,75 @@ class _LoginState extends State<Login> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
+  bool _isLoading = false;
+  bool _obscurePassword = true;
+
   @override
   void dispose() {
-    // TODO: implement dispose
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  Future<void> _handleLogin() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+
+    // ================= VALIDATION =================
+    if (email.isEmpty || password.isEmpty) {
+      _showSnackBar("Please enter email and password");
+      return;
+    }
+
+    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email)) {
+      _showSnackBar("Invalid email format");
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    final user = await SupabaseService.signIn(
+      email: email,
+      password: password,
+    );
+
+    setState(() => _isLoading = false);
+
+    if (!mounted) return;
+
+    if (user == null) {
+      _showSnackBar("Invalid email or password");
+      return;
+    }
+
+    final role = user['user_role'];
+
+    if (role == 'admin') {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const AdminPage(),
+        ),
+            (route) => false,
+      );
+    } else {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (_) => Account(email: user['email']),
+        ),
+            (route) => false,
+      );
+    }
+  }
+
+  void _showSnackBar(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        backgroundColor: const Color(0xFFCF0000),
+      ),
+    );
   }
 
   @override
@@ -28,21 +93,19 @@ class _LoginState extends State<Login> {
       backgroundColor: const Color(0xFFF5F5F7),
       body: SafeArea(
         child: Column(
-          crossAxisAlignment: .start,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            //Page content here
+            // Top bar with back button and title
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: Stack(
-                alignment: .center,
+                alignment: Alignment.center,
                 children: [
-                  //Up button
+                  // Back button
                   Align(
-                    alignment: .centerLeft,
+                    alignment: Alignment.centerLeft,
                     child: GestureDetector(
-                      onTap: () {
-                        Navigator.pop(context);
-                      },
+                      onTap: () => Navigator.pop(context),
                       child: ClipOval(
                         child: BackdropFilter(
                           filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
@@ -57,7 +120,10 @@ class _LoginState extends State<Login> {
                                 width: 1,
                               ),
                             ),
-                            child: const Icon(Icons.arrow_back, color: Colors.black),
+                            child: const Icon(
+                              Icons.arrow_back,
+                              color: Colors.black,
+                            ),
                           ),
                         ),
                       ),
@@ -68,7 +134,7 @@ class _LoginState extends State<Login> {
                       'Login',
                       style: TextStyle(
                         fontSize: 24,
-                        fontWeight: .bold,
+                        fontWeight: FontWeight.bold,
                         color: Colors.black,
                       ),
                     ),
@@ -82,10 +148,10 @@ class _LoginState extends State<Login> {
             const Center(
               child: Text(
                 'Welcome back\nto Cincai',
-                textAlign: .center,
+                textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 24,
-                  fontWeight: .bold,
+                  fontWeight: FontWeight.bold,
                   color: Colors.black,
                 ),
               ),
@@ -93,11 +159,12 @@ class _LoginState extends State<Login> {
 
             const SizedBox(height: 40),
 
-            //Email and Password fields
+            // Email and Password fields
             Padding(
-              padding: const EdgeInsetsGeometry.symmetric(horizontal: 24),
+              padding: const EdgeInsets.symmetric(horizontal: 24),
               child: Column(
                 children: [
+                  // Email field
                   TextField(
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
@@ -106,11 +173,10 @@ class _LoginState extends State<Login> {
                       hintStyle: const TextStyle(color: Colors.grey),
                       filled: true,
                       fillColor: const Color(0xFFF5F5F7),
-                      // ← same as background
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(50),
                         borderSide: const BorderSide(
-                          color: Colors.grey, // ← grey border
+                          color: Colors.grey,
                           width: 1,
                         ),
                       ),
@@ -118,14 +184,13 @@ class _LoginState extends State<Login> {
                         borderRadius: BorderRadius.circular(50),
                         borderSide: BorderSide(
                           color: Colors.grey.withOpacity(0.4),
-                          // ← grey border when not focused
                           width: 1,
                         ),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(50),
                         borderSide: const BorderSide(
-                          color: Colors.grey, // ← grey border when focused
+                          color: Colors.grey,
                           width: 1,
                         ),
                       ),
@@ -135,20 +200,22 @@ class _LoginState extends State<Login> {
                       ),
                     ),
                   ),
+
                   const SizedBox(height: 20),
+
+                  // Password field
                   TextField(
                     controller: _passwordController,
-                    obscureText: true,
+                    obscureText: _obscurePassword,
                     decoration: InputDecoration(
                       hintText: 'Password',
                       hintStyle: const TextStyle(color: Colors.grey),
                       filled: true,
                       fillColor: const Color(0xFFF5F5F7),
-                      // ← same as background
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(50),
                         borderSide: const BorderSide(
-                          color: Colors.grey, // ← grey border
+                          color: Colors.grey,
                           width: 1,
                         ),
                       ),
@@ -156,14 +223,13 @@ class _LoginState extends State<Login> {
                         borderRadius: BorderRadius.circular(50),
                         borderSide: BorderSide(
                           color: Colors.grey.withOpacity(0.4),
-                          // ← grey border when not focused
                           width: 1,
                         ),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(50),
                         borderSide: const BorderSide(
-                          color: Colors.grey, // ← grey border when focused
+                          color: Colors.grey,
                           width: 1,
                         ),
                       ),
@@ -171,32 +237,26 @@ class _LoginState extends State<Login> {
                         horizontal: 24,
                         vertical: 16,
                       ),
-                    ),
-                  ),
-                  const SizedBox(height: 30),
-
-                  // Forgot password
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: GestureDetector(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => const ForgotPassword()),
-                        );
-                      },
-                      child: const Text(
-                        'Forgot password?',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Color(0xFFCF0000),
-                          decoration: TextDecoration.underline,
-                          decorationColor: Color(0xFFCF0000),
+                      suffixIcon: Padding(
+                        padding: const EdgeInsets.only(right: 8.0),
+                        child: IconButton(
+                          icon: Icon(
+                            _obscurePassword
+                                ? Icons.visibility_off
+                                : Icons.visibility,
+                            color: Colors.grey,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _obscurePassword = !_obscurePassword;
+                            });
+                          },
                         ),
                       ),
                     ),
                   ),
-                  const SizedBox(height: 20),
+
+                  const SizedBox(height: 30),
 
                   // Don't have an account
                   Row(
@@ -213,7 +273,8 @@ class _LoginState extends State<Login> {
                         onTap: () {
                           Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (_) => const Signup()),
+                            MaterialPageRoute(
+                                builder: (_) => const Signup()),
                           );
                         },
                         child: const Text(
@@ -228,29 +289,32 @@ class _LoginState extends State<Login> {
                       ),
                     ],
                   ),
+
                   const SizedBox(height: 20),
 
-                  //Login Button
-                  Padding(
-                    padding: const EdgeInsetsGeometry.symmetric(horizontal: 1),
-                    child: SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: () {},
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFCF0000),
-                          minimumSize: const Size(double.infinity, 56),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(50),
-                          ),
+                  // Login Button
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: _isLoading ? null : _handleLogin,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFCF0000),
+                        disabledBackgroundColor:
+                        Colors.grey.withOpacity(0.3),
+                        minimumSize: const Size(double.infinity, 56),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(50),
                         ),
-                        child: const Text(
-                          'Login',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: .bold,
-                            color: Colors.white,
-                          ),
+                      ),
+                      child: _isLoading
+                          ? const CircularProgressIndicator(
+                          color: Colors.white)
+                          : const Text(
+                        'Login',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
                         ),
                       ),
                     ),

@@ -1,15 +1,48 @@
 import 'package:flutter/material.dart';
 import 'dart:ui';
+import 'supabase_service.dart';
+import 'login.dart';
 import 'profile.dart';
+import 'order.dart';
 
 class Account extends StatefulWidget {
-  const Account({super.key});
+  final String email;
+
+  const Account({super.key, required this.email});
 
   @override
   State<Account> createState() => _AccountState();
 }
 
 class _AccountState extends State<Account> {
+  String _name = '';
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUser();
+  }
+
+  Future<void> _loadUser() async {
+    final data = await SupabaseService.getProfile(widget.email);
+
+    if (!mounted) return;
+
+    setState(() {
+      _name = data?['name'] ?? 'User';
+      _loading = false;
+    });
+  }
+
+  void _logout() {
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => const Login()),
+          (route) => false,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -19,18 +52,17 @@ class _AccountState extends State<Account> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+
+              /// ================= TOP BAR =================
               Padding(
-                padding: const EdgeInsets.all(16.0),
+                padding: const EdgeInsets.all(16),
                 child: Stack(
                   alignment: Alignment.center,
                   children: [
-                    //Up Button
                     Align(
                       alignment: Alignment.centerLeft,
                       child: GestureDetector(
-                        onTap: () {
-                          Navigator.pop(context);
-                        },
+                        onTap: () => Navigator.pop(context),
                         child: ClipOval(
                           child: BackdropFilter(
                             filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
@@ -42,343 +74,139 @@ class _AccountState extends State<Account> {
                                 shape: BoxShape.circle,
                                 border: Border.all(
                                   color: Colors.white.withOpacity(0.8),
-                                  width: 1,
                                 ),
                               ),
-                              child: const Icon(
-                                Icons.arrow_back,
-                                color: Colors.black,
-                              ),
+                              child: const Icon(Icons.arrow_back),
                             ),
                           ),
                         ),
                       ),
                     ),
-
-                    // Account title centered
-                    const Center(
-                      child: Text(
-                        'Account',
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              // Profile section
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    //User name
                     const Text(
-                      'Oe', //TODO: Replace with Supabase user name
+                      'Account',
                       style: TextStyle(
-                        fontSize: 22,
+                        fontSize: 24,
                         fontWeight: FontWeight.bold,
-                        color: Colors.black,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    //View profile - navigates to Profile page
-                    GestureDetector(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => const Profile()),
-                        );
-                      },
-                      child: const Text(
-                        'View Profile',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          color: Color(0xFFCF0000),
-                        ),
                       ),
                     ),
                   ],
                 ),
               ),
 
-              const SizedBox(height: 32),
-
-              //Orders & Addresses section
+              /// ================= USER INFO =================
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.6),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: Colors.white.withOpacity(0.8),
-                          width: 1,
-                        ),
-                      ),
-                      child: Column(
-                        children: [
-                          // My Orders
-                          Material(
-                            color: Colors.transparent,
-                            child: ListTile(
-                              onTap: () {
-                                // TODO: Navigate to orders page
-                              },
-                              splashColor: Colors.grey.withOpacity(0.2),
-                              leading: const Icon(Icons.receipt_long_outlined, color: Colors.black),
-                              title: const Text(
-                                'My Orders',
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w500,
-                                  color: Colors.black,
-                                ),
-                              ),
-                              trailing: const Icon(Icons.chevron_right, color: Colors.grey),
-                            ),
-                          ),
+                child: _loading
+                    ? Container(
+                  width: 120,
+                  height: 24,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                )
+                    : Text(
+                  _name,
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
 
-                          Divider(height: 1, indent: 16, endIndent: 16, color: Colors.grey.withOpacity(0.3)),
+              const SizedBox(height: 6),
 
-                          // My Addresses
-                          Material(
-                            color: Colors.transparent,
-                            child: ListTile(
-                              onTap: () {
-                                // TODO: Navigate to addresses page
-                              },
-                              splashColor: Colors.grey.withOpacity(0.2),
-                              leading: const Icon(Icons.location_on_outlined, color: Colors.black),
-                              title: const Text(
-                                'My Addresses',
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w500,
-                                  color: Colors.black,
-                                ),
-                              ),
-                              trailing: const Icon(Icons.chevron_right, color: Colors.grey),
-                            ),
-                          ),
-                        ],
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: GestureDetector(
+                  onTap: () async {
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => Profile(email: widget.email),
                       ),
+                    );
+                    _loadUser(); // refresh after profile edit
+                  },
+                  child: const Text(
+                    "View Profile",
+                    style: TextStyle(
+                      color: Color(0xFFCF0000),
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ),
               ),
 
-              const SizedBox(height: 28),
+              const SizedBox(height: 30),
 
-              // About Cincai section label
+              /// ================= ORDERS & ADDRESSES =================
+              _buildSectionCard([
+                _tile(Icons.receipt_long_outlined, "My Orders", onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => Order(email: widget.email),
+                    ),
+                  );
+                }),
+                _divider(),
+                _tile(Icons.location_on_outlined, "My Addresses"),
+              ]),
+
+              const SizedBox(height: 20),
+
+              /// ================= ABOUT CINCAI =================
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 24),
                 child: Text(
                   'About Cincai',
                   style: TextStyle(
-                    fontSize: 20,
+                    fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: Colors.black,
                   ),
                 ),
               ),
 
-              const SizedBox(height: 8),
+              const SizedBox(height: 10),
 
-              // About Cincai section container
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.6),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: Colors.white.withOpacity(0.8),
-                          width: 1,
-                        ),
-                      ),
-                      child: Column(
-                        children: [
-                          // About Us
-                          Material(
-                            color: Colors.transparent,
-                            child: ListTile(
-                              onTap: () {
-                                // TODO: Navigate to About Us
-                              },
-                              splashColor: Colors.grey.withOpacity(0.2),
-                              leading: const Icon(Icons.info_outline, color: Colors.black),
-                              title: const Text(
-                                'About Us',
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w500,
-                                  color: Colors.black,
-                                ),
-                              ),
-                              trailing: const Icon(Icons.chevron_right, color: Colors.grey),
-                            ),
-                          ),
+              _buildSectionCard([
+                _tile(Icons.info_outline, "About Us"),
+                _divider(),
+                _tile(Icons.menu_book_outlined, "Our Story"),
+              ]),
 
-                          Divider(height: 1, indent: 16, endIndent: 16, color: Colors.grey.withOpacity(0.3)),
+              const SizedBox(height: 20),
 
-                          // Our Story
-                          Material(
-                            color: Colors.transparent,
-                            child: ListTile(
-                              onTap: () {
-                                // TODO: Navigate to Our Story
-                              },
-                              splashColor: Colors.grey.withOpacity(0.2),
-                              leading: const Icon(Icons.menu_book_outlined, color: Colors.black),
-                              title: const Text(
-                                'Our Story',
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w500,
-                                  color: Colors.black,
-                                ),
-                              ),
-                              trailing: const Icon(Icons.chevron_right, color: Colors.grey),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 28),
-
-              // General section label
+              /// ================= GENERAL =================
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 24),
                 child: Text(
-                  'General',
+                  "General",
                   style: TextStyle(
-                    fontSize: 20,
+                    fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: Colors.black,
                   ),
                 ),
               ),
 
-              const SizedBox(height: 8),
+              const SizedBox(height: 10),
 
-              // General section container
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.6),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: Colors.white.withOpacity(0.8),
-                          width: 1,
-                        ),
-                      ),
-                      child: Column(
-                        children: [
-                          // Help Centre
-                          Material(
-                            color: Colors.transparent,
-                            child: ListTile(
-                              onTap: () {
-                                // TODO: Navigate to Help Centre
-                              },
-                              splashColor: Colors.grey.withOpacity(0.2),
-                              leading: const Icon(Icons.help_outline, color: Colors.black),
-                              title: const Text(
-                                'Help Centre',
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w500,
-                                  color: Colors.black,
-                                ),
-                              ),
-                              trailing: const Icon(Icons.chevron_right, color: Colors.grey),
-                            ),
-                          ),
+              _buildSectionCard([
+                _tile(Icons.help_outline, "Help Centre"),
+                _divider(),
+                _tile(Icons.phone_outlined, "Contact Us"),
+                _divider(),
+                _tile(Icons.description_outlined, "Terms & Policies"),
+              ]),
 
-                          Divider(height: 1, indent: 16, endIndent: 16, color: Colors.grey.withOpacity(0.3)),
+              const SizedBox(height: 30),
 
-                          // Contact Us
-                          Material(
-                            color: Colors.transparent,
-                            child: ListTile(
-                              onTap: () {
-                                // TODO: Navigate to Contact Us
-                              },
-                              splashColor: Colors.grey.withOpacity(0.2),
-                              leading: const Icon(Icons.phone_outlined, color: Colors.black),
-                              title: const Text(
-                                'Contact Us',
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w500,
-                                  color: Colors.black,
-                                ),
-                              ),
-                              trailing: const Icon(Icons.chevron_right, color: Colors.grey),
-                            ),
-                          ),
-
-                          Divider(height: 1, indent: 16, endIndent: 16, color: Colors.grey.withOpacity(0.3)),
-
-                          // Terms & Policies
-                          Material(
-                            color: Colors.transparent,
-                            child: ListTile(
-                              onTap: () {
-                                // TODO: Navigate to Terms & Policies
-                              },
-                              splashColor: Colors.grey.withOpacity(0.2),
-                              leading: const Icon(Icons.description_outlined, color: Colors.black),
-                              title: const Text(
-                                'Terms & Policies',
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w500,
-                                  color: Colors.black,
-                                ),
-                              ),
-                              trailing: const Icon(Icons.chevron_right, color: Colors.grey),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 28),
-
-              // Log Out button
+              /// ================= LOGOUT =================
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: ElevatedButton(
-                  onPressed: () {
-                    // TODO: Log out logic here
-                  },
+                  onPressed: _logout,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFFCF0000),
                     minimumSize: const Size(double.infinity, 56),
@@ -387,21 +215,59 @@ class _AccountState extends State<Account> {
                     ),
                   ),
                   child: const Text(
-                    'Log Out',
+                    "Log Out",
                     style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
                       color: Colors.white,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
                 ),
               ),
 
-              const SizedBox(height: 32),
+              const SizedBox(height: 30),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildSectionCard(List<Widget> children) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.6),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.white.withOpacity(0.8)),
+            ),
+            child: Column(children: children),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // onTap is optional — tiles without onTap do nothing when tapped
+  Widget _tile(IconData icon, String title, {VoidCallback? onTap}) {
+    return ListTile(
+      leading: Icon(icon),
+      title: Text(title),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: onTap,
+    );
+  }
+
+  Widget _divider() {
+    return Divider(
+      height: 1,
+      color: Colors.grey.withOpacity(0.3),
+      indent: 16,
+      endIndent: 16,
     );
   }
 }

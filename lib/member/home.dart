@@ -8,7 +8,9 @@ import 'login.dart';
 import 'menu.dart';
 
 class Home extends StatefulWidget {
-  const Home({super.key});
+  final String? userEmail;
+
+  const Home({super.key, this.userEmail});
 
   @override
   State<Home> createState() => _HomeState();
@@ -17,7 +19,10 @@ class Home extends StatefulWidget {
 class _HomeState extends State<Home> {
   int _selectedIndex = 0;
   bool _isSearching = false;
-  bool _isLoggedIn = false;
+
+  // Stores the logged-in user's id
+  // null means guest (not logged in)
+  int? _userId;
 
   List<String> _bannerImages = [];
   Map<String, String> _categoryImages = {
@@ -34,7 +39,6 @@ class _HomeState extends State<Home> {
   int _currentBannerIndex = 0;
   Timer? _bannerTimer;
 
-  //Handle left icons when search bar is opens
   IconData _currentIcon() {
     switch (_selectedIndex) {
       case 0:
@@ -51,39 +55,34 @@ class _HomeState extends State<Home> {
   }
 
   Widget _navItem(IconData icons, String label, int index) {
-    ///Check if this tab is currently selected
     final bool isSelected = _selectedIndex == index;
-    //Makes the tab tappable
     return GestureDetector(
       onTap: () {
-        setState(() {
-          _selectedIndex = index;
-        });
-        // Navigate to the selected page
+        setState(() => _selectedIndex = index);
         if (index == 1) {
+          // Anyone can browse menu — guests use userId 0
           _showTablePickerDialog();
         } else if (index == 2) {
+          // Anyone can view cart — guests use userId 0
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (_) => const Cart()),
-          ).then((_) {
-            setState(() => _selectedIndex = 0);
-          });
+            MaterialPageRoute(
+              builder: (_) => Cart(userId: _userId ?? 0),
+            ),
+          ).then((_) => setState(() => _selectedIndex = 0));
         } else if (index == 3) {
-          if (_isLoggedIn) {
+          if (widget.userEmail != null) {
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => const Account()),
-            ).then((_) {
-              setState(() => _selectedIndex = 0);
-            });
+              MaterialPageRoute(
+                builder: (_) => Account(email: widget.userEmail!),
+              ),
+            ).then((_) => setState(() => _selectedIndex = 0));
           } else {
             Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const Login()),
-            ).then((_) {
-              setState(() => _selectedIndex = 0);
-            });
+            ).then((_) => setState(() => _selectedIndex = 0));
           }
         }
       },
@@ -91,27 +90,24 @@ class _HomeState extends State<Home> {
         width: 72,
         padding: const EdgeInsets.symmetric(vertical: 6),
         decoration: BoxDecoration(
-          //Selected tab (light grey background), unselected (transparent)
           color: isSelected ? const Color(0xFFF5F5F5) : Colors.transparent,
           borderRadius: BorderRadius.circular(50),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              icons,
-              color: isSelected ? const Color(0xFFCF0000) : Colors.grey,
-              size: 24,
-            ),
-            const SizedBox(height: 2),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 11,
+            Icon(icons,
                 color: isSelected ? const Color(0xFFCF0000) : Colors.grey,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-              ),
-            ),
+                size: 24),
+            const SizedBox(height: 2),
+            Text(label,
+                style: TextStyle(
+                    fontSize: 11,
+                    color:
+                    isSelected ? const Color(0xFFCF0000) : Colors.grey,
+                    fontWeight: isSelected
+                        ? FontWeight.w600
+                        : FontWeight.normal)),
           ],
         ),
       ),
@@ -120,23 +116,19 @@ class _HomeState extends State<Home> {
 
   Widget _categoryItem(String label, String imageUrl) {
     return GestureDetector(
+      // Anyone can tap categories — guests use userId 0
       onTap: () => _showTablePickerDialog(initialCategory: label),
       child: Padding(
         padding: const EdgeInsets.only(right: 16),
         child: Column(
           children: [
-            // Circle image
             ClipOval(child: _buildImage(imageUrl, width: 64, height: 64)),
             const SizedBox(height: 8),
-            // Label
-            Text(
-              label,
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-                color: Colors.black,
-              ),
-            ),
+            Text(label,
+                style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.black)),
           ],
         ),
       ),
@@ -144,39 +136,29 @@ class _HomeState extends State<Home> {
   }
 
   Widget _popularItem(
-    String name,
-    String price,
-    String imageUrl,
-    String category,
-  ) {
+      String name, String price, String imageUrl, String category) {
     return GestureDetector(
+      // Anyone can tap popular items — guests use userId 0
       onTap: () => _showTablePickerDialog(initialCategory: category),
       child: Padding(
         padding: const EdgeInsets.only(right: 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Food image
             ClipRRect(
               borderRadius: BorderRadius.circular(16),
               child: _buildImage(imageUrl, width: 150, height: 130),
             ),
             const SizedBox(height: 8),
-            // Food name
-            Text(
-              name,
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.bold,
-                color: Colors.black,
-              ),
-            ),
+            Text(name,
+                style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black)),
             const SizedBox(height: 4),
-            // Price
-            Text(
-              price,
-              style: const TextStyle(fontSize: 12, color: Colors.grey),
-            ),
+            Text(price,
+                style:
+                const TextStyle(fontSize: 12, color: Colors.grey)),
           ],
         ),
       ),
@@ -197,10 +179,10 @@ class _HomeState extends State<Home> {
             builder: (context, setDialogState) {
               return Dialog(
                 backgroundColor: const Color(0xFFF5F5F7),
-                insetPadding: const EdgeInsets.symmetric(horizontal: 100),
+                insetPadding:
+                const EdgeInsets.symmetric(horizontal: 100),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                ),
+                    borderRadius: BorderRadius.circular(20)),
                 child: Padding(
                   padding: const EdgeInsets.all(20),
                   child: Column(
@@ -210,14 +192,11 @@ class _HomeState extends State<Home> {
                         'Select Your Table Number',
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black,
-                        ),
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black),
                       ),
                       const SizedBox(height: 16),
-
-                      //Table No Scrollable list
                       SizedBox(
                         width: 200,
                         height: 250,
@@ -228,8 +207,7 @@ class _HomeState extends State<Home> {
                             final isSelected = selectedTable == tableNumber;
                             return GestureDetector(
                               onTap: () => setDialogState(
-                                () => selectedTable = tableNumber,
-                              ),
+                                      () => selectedTable = tableNumber),
                               child: Container(
                                 height: 40,
                                 margin: const EdgeInsets.only(bottom: 6),
@@ -246,16 +224,13 @@ class _HomeState extends State<Home> {
                                   ),
                                 ),
                                 child: Center(
-                                  child: Text(
-                                    '$tableNumber',
-                                    style: TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.bold,
-                                      color: isSelected
-                                          ? Colors.white
-                                          : Colors.black,
-                                    ),
-                                  ),
+                                  child: Text('$tableNumber',
+                                      style: TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.bold,
+                                          color: isSelected
+                                              ? Colors.white
+                                              : Colors.black)),
                                 ),
                               ),
                             );
@@ -263,49 +238,43 @@ class _HomeState extends State<Home> {
                         ),
                       ),
                       const SizedBox(height: 16),
-
                       Row(
-                        mainAxisAlignment: .end,
+                        mainAxisAlignment: MainAxisAlignment.end,
                         children: [
                           TextButton(
                             onPressed: () {
                               Navigator.pop(context);
                               setState(() => _selectedIndex = 0);
                             },
-                            child: const Text(
-                              'Cancel',
-                              style: TextStyle(color: Colors.grey),
-                            ),
+                            child: const Text('Cancel',
+                                style: TextStyle(color: Colors.grey)),
                           ),
                           ElevatedButton(
                             onPressed: selectedTable == null
                                 ? null
                                 : () {
-                                    Navigator.pop(context);
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (_) => Menu(
-                                          initialCategory: initialCategory,
-                                        ),
-                                      ),
-                                    ).then((_) {
-                                      setState(() => _selectedIndex = 0);
-                                    });
-                                  },
+                              Navigator.pop(context);
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => Menu(
+                                    initialCategory: initialCategory,
+                                    // Pass _userId — 0 for guests
+                                    userId: _userId ?? 0,
+                                  ),
+                                ),
+                              ).then((_) =>
+                                  setState(() => _selectedIndex = 0));
+                            },
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFFCF0000),
-                              disabledBackgroundColor: Colors.grey.withOpacity(
-                                0.3,
-                              ),
+                              disabledBackgroundColor:
+                              Colors.grey.withOpacity(0.3),
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(50),
-                              ),
+                                  borderRadius: BorderRadius.circular(50)),
                             ),
-                            child: const Text(
-                              'Confirm',
-                              style: TextStyle(color: Colors.white),
-                            ),
+                            child: const Text('Confirm',
+                                style: TextStyle(color: Colors.white)),
                           ),
                         ],
                       ),
@@ -322,9 +291,7 @@ class _HomeState extends State<Home> {
 
   @override
   void initState() {
-    // TODO: implement initState
     super.initState();
-    //Start auto scroll timer every 3 seconds
     _bannerTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
       _bannerController.nextPage(
         duration: const Duration(milliseconds: 600),
@@ -336,23 +303,16 @@ class _HomeState extends State<Home> {
 
   @override
   void dispose() {
-    // TODO: implement dispose
     _bannerTimer?.cancel();
     _bannerController.dispose();
     super.dispose();
   }
 
-  Widget _buildImage(
-    String imageUrl, {
-    double width = 110,
-    double height = 110,
-  }) {
+  Widget _buildImage(String imageUrl,
+      {double width = 110, double height = 110}) {
     if (imageUrl.isEmpty) {
       return Container(
-        width: width,
-        height: height,
-        color: const Color(0xFFEEEEEE),
-      );
+          width: width, height: height, color: const Color(0xFFEEEEEE));
     }
     if (imageUrl.startsWith('http')) {
       return Image.network(
@@ -371,10 +331,7 @@ class _HomeState extends State<Home> {
         },
         errorBuilder: (context, error, stackTrace) {
           return Container(
-            width: width,
-            height: height,
-            color: const Color(0xFFEEEEEE),
-          );
+              width: width, height: height, color: const Color(0xFFEEEEEE));
         },
       );
     } else {
@@ -385,10 +342,7 @@ class _HomeState extends State<Home> {
         fit: BoxFit.cover,
         errorBuilder: (context, error, stackTrace) {
           return Container(
-            width: width,
-            height: height,
-            color: const Color(0xFFEEEEEE),
-          );
+              width: width, height: height, color: const Color(0xFFEEEEEE));
         },
       );
     }
@@ -402,17 +356,13 @@ class _HomeState extends State<Home> {
           .eq('is_available', true)
           .order('sort_order', ascending: true);
 
-      //Banner: Set A and Set B images
-      //Filter only items that category is Set
-      final setItems = response
-          .where((item) => item['category'] == 'Set')
-          .toList();
-      //Takes only the image_url from each Set item amd remove empty one
+      final setItems =
+      response.where((item) => item['category'] == 'Set').toList();
       final List<String> bannerImages = setItems
           .map((item) => item['image_url'] as String? ?? '')
           .where((url) => url.isNotEmpty)
           .toList();
-      //Categories images
+
       final Map<String, String> categoryImages = {
         'Set': '',
         'Rice': '',
@@ -421,7 +371,6 @@ class _HomeState extends State<Home> {
         'Beverage': '',
       };
 
-      //Save only first image in every category, E.g., get Rice first image
       for (final item in response) {
         final category = item['category'] as String;
         if (categoryImages.containsKey(category) &&
@@ -430,7 +379,6 @@ class _HomeState extends State<Home> {
         }
       }
 
-      //Popular item section
       final popularNames = [
         'Set B',
         'Lu Rou Fan',
@@ -439,23 +387,38 @@ class _HomeState extends State<Home> {
       ];
       final List<Map<String, String>> popularItems = [];
       for (final name in popularNames) {
-        final found = response.where((item) => item['name'] == name).toList();
+        final found =
+        response.where((item) => item['name'] == name).toList();
         if (found.isNotEmpty) {
           popularItems.add({
             'name': found[0]['name'] ?? '',
-            'price': 'RM ${(found[0]['price'] as num).toStringAsFixed(2)}',
+            'price':
+            'RM ${(found[0]['price'] as num).toStringAsFixed(2)}',
             'imageUrl': found[0]['image_url'] ?? '',
             'category': found[0]['category'] ?? 'Set',
           });
         }
       }
+
+      // Fetch userId from email if logged in
+      if (widget.userEmail != null) {
+        final user = await Supabase.instance.client
+            .from('users')
+            .select('id')
+            .eq('email', widget.userEmail!.trim())
+            .maybeSingle();
+        if (user != null) {
+          setState(() => _userId = user['id'] as int);
+        }
+      }
+
       setState(() {
         if (bannerImages.isNotEmpty) _bannerImages = bannerImages;
         _categoryImages = categoryImages;
         _popularItems = popularItems;
       });
     } catch (e) {
-      print('Error fetching home data');
+      print('Error fetching home data: $e');
     }
   }
 
@@ -470,185 +433,152 @@ class _HomeState extends State<Home> {
         title: AnimatedSwitcher(
           duration: const Duration(milliseconds: 300),
           child: _isSearching
-              ? const Text(
-                  'Search',
-                  key: ValueKey('search'),
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
-                  ),
-                )
-              : const Text(
-                  'Cincai',
-                  key: ValueKey('normal'),
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
-                  ),
-                ),
+              ? const Text('Search',
+              key: ValueKey('search'),
+              style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black))
+              : const Text('Cincai',
+              key: ValueKey('normal'),
+              style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black)),
         ),
       ),
-      //Prevent content from going behind camera notch, status bar or home indicator at bottom
       body: SafeArea(
         child: Column(
           children: [
-            //Make content scrollable vertically
             Expanded(
               child: _isSearching
-                  // SEARCH PAGE - empty page
                   ? const SizedBox()
-                  // HOME PAGE
                   : ListView(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      children: [
-                        //page content here
-                        SizedBox(
-                          height: 250,
-                          child: PageView.builder(
-                            controller: _bannerController,
-                            reverse: false,
-                            physics: const PageScrollPhysics(),
-                            onPageChanged: (index) {
-                              if (_bannerImages.isEmpty) return;
-                              setState(() {
-                                _currentBannerIndex =
-                                    index % _bannerImages.length;
-                              });
-                            },
-                            itemCount: 99999,
-                            itemBuilder: (context, index) {
-                              if (_bannerImages.isEmpty)
-                                return const SizedBox();
-                              final imageIndex = index % _bannerImages.length;
-                              return GestureDetector(
-                                onTap: () => _showTablePickerDialog(initialCategory: 'Set'),
-                                child: Padding(
-                                  padding: const EdgeInsets.only(right: 8.0),
-                                  child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(16),
-                                    child: _buildImage(
-                                      _bannerImages[imageIndex],
-                                      width: double.infinity,
-                                      height: 250,
-                                    ),
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        //Banner Dot Indicators
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: List.generate(
-                            _bannerImages.length,
-                            (index) => AnimatedContainer(
-                              duration: const Duration(milliseconds: 300),
-                              margin: const EdgeInsets.symmetric(horizontal: 4),
-                              width: _currentBannerIndex == index ? 20 : 8,
-                              height: 8,
-                              decoration: BoxDecoration(
-                                color: _currentBannerIndex == index
-                                    ? Colors.black.withOpacity(0.5)
-                                    : Colors.grey.withOpacity(0.3),
-                                borderRadius: BorderRadius.circular(50),
+                padding:
+                const EdgeInsets.symmetric(horizontal: 16),
+                children: [
+                  SizedBox(
+                    height: 250,
+                    child: PageView.builder(
+                      controller: _bannerController,
+                      reverse: false,
+                      physics: const PageScrollPhysics(),
+                      onPageChanged: (index) {
+                        if (_bannerImages.isEmpty) return;
+                        setState(() {
+                          _currentBannerIndex =
+                              index % _bannerImages.length;
+                        });
+                      },
+                      itemCount: 99999,
+                      itemBuilder: (context, index) {
+                        if (_bannerImages.isEmpty)
+                          return const SizedBox();
+                        final imageIndex =
+                            index % _bannerImages.length;
+                        return GestureDetector(
+                          onTap: () => _showTablePickerDialog(
+                              initialCategory: 'Set'),
+                          child: Padding(
+                            padding:
+                            const EdgeInsets.only(right: 8.0),
+                            child: ClipRRect(
+                              borderRadius:
+                              BorderRadius.circular(16),
+                              child: _buildImage(
+                                _bannerImages[imageIndex],
+                                width: double.infinity,
+                                height: 250,
                               ),
                             ),
                           ),
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(
+                      _bannerImages.length,
+                          (index) => AnimatedContainer(
+                        duration: const Duration(milliseconds: 300),
+                        margin: const EdgeInsets.symmetric(
+                            horizontal: 4),
+                        width:
+                        _currentBannerIndex == index ? 20 : 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: _currentBannerIndex == index
+                              ? Colors.black.withOpacity(0.5)
+                              : Colors.grey.withOpacity(0.3),
+                          borderRadius: BorderRadius.circular(50),
                         ),
-                        const SizedBox(height: 24),
-
-                        //Categories Section
-                        const Text(
-                          'Categories',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black,
-                          ),
-                        ),
-
-                        const SizedBox(height: 16),
-
-                        SizedBox(
-                          height: 100,
-                          child: ListView(
-                            scrollDirection: Axis.horizontal,
-                            children: [
-                              _categoryItem(
-                                'Set',
-                                _categoryImages['Set'] ?? '',
-                              ),
-                              _categoryItem(
-                                'Rice',
-                                _categoryImages['Rice'] ?? '',
-                              ),
-                              _categoryItem(
-                                'Noodle',
-                                _categoryImages['Noodle'] ?? '',
-                              ),
-                              _categoryItem(
-                                'Western Food',
-                                _categoryImages['Western Food'] ?? '',
-                              ),
-                              _categoryItem(
-                                'Beverage',
-                                _categoryImages['Beverage'] ?? '',
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        const SizedBox(height: 24),
-
-                        //Popular section
-                        const Text(
-                          'Popular',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black,
-                          ),
-                        ),
-
-                        const SizedBox(height: 16),
-
-                        //Popular Horizontal Scroll
-                        SizedBox(
-                          height: 180,
-                          child: ListView(
-                            scrollDirection: Axis.horizontal,
-                            children: _popularItems.map((item) =>
-                                _popularItem(item['name']!, item['price']!, item['imageUrl']!, item['category'] ?? 'Set'),
-                            ).toList(),
-                          ),
-                        ),
-
-                        const SizedBox(height: 24),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  const Text('Categories',
+                      style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black)),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    height: 100,
+                    child: ListView(
+                      scrollDirection: Axis.horizontal,
+                      children: [
+                        _categoryItem(
+                            'Set', _categoryImages['Set'] ?? ''),
+                        _categoryItem(
+                            'Rice', _categoryImages['Rice'] ?? ''),
+                        _categoryItem('Noodle',
+                            _categoryImages['Noodle'] ?? ''),
+                        _categoryItem('Western Food',
+                            _categoryImages['Western Food'] ?? ''),
+                        _categoryItem('Beverage',
+                            _categoryImages['Beverage'] ?? ''),
                       ],
                     ),
+                  ),
+                  const SizedBox(height: 24),
+                  const Text('Popular',
+                      style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black)),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    height: 180,
+                    child: ListView(
+                      scrollDirection: Axis.horizontal,
+                      children: _popularItems
+                          .map((item) => _popularItem(
+                        item['name']!,
+                        item['price']!,
+                        item['imageUrl']!,
+                        item['category'] ?? 'Set',
+                      ))
+                          .toList(),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                ],
+              ),
             ),
-
-            // Search bar inside body - moves up with keyboard
             if (_isSearching)
               Padding(
-                padding: const EdgeInsets.only(left: 16, right: 16, bottom: 24),
+                padding: const EdgeInsets.only(
+                    left: 16, right: 16, bottom: 24),
                 child: Row(
                   children: [
-                    //Tap left icon close search
                     GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          _isSearching = false;
-                        });
-                      },
-                      //The circular left icon button
+                      onTap: () => setState(() => _isSearching = false),
                       child: ClipOval(
                         child: BackdropFilter(
-                          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                          filter: ImageFilter.blur(
+                              sigmaX: 20, sigmaY: 20),
                           child: Container(
                             width: 63,
                             height: 63,
@@ -656,68 +586,53 @@ class _HomeState extends State<Home> {
                               color: Colors.white.withOpacity(0.6),
                               shape: BoxShape.circle,
                               border: Border.all(
-                                color: Colors.white.withOpacity(0.8),
-                                width: 1,
-                              ),
+                                  color: Colors.white.withOpacity(0.8),
+                                  width: 1),
                             ),
-                            child: Icon(
-                              _currentIcon(),
-                              color: Colors.grey,
-                              size: 24,
-                            ),
+                            child: Icon(_currentIcon(),
+                                color: Colors.grey, size: 24),
                           ),
                         ),
                       ),
                     ),
                     const SizedBox(width: 12),
-
-                    //Expanded Search Bar
                     Expanded(
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(50),
                         child: BackdropFilter(
-                          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                          filter: ImageFilter.blur(
+                              sigmaX: 20, sigmaY: 20),
                           child: Container(
                             height: 63,
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16),
                             decoration: BoxDecoration(
                               color: Colors.white.withOpacity(0.6),
                               borderRadius: BorderRadius.circular(50),
                               border: Border.all(
-                                color: Colors.white.withOpacity(0.8),
-                                width: 1,
-                              ),
+                                  color: Colors.white.withOpacity(0.8),
+                                  width: 1),
                             ),
                             child: Row(
                               children: [
-                                const Icon(
-                                  Icons.search,
-                                  color: Colors.grey,
-                                  size: 20,
-                                ),
+                                const Icon(Icons.search,
+                                    color: Colors.grey, size: 20),
                                 const SizedBox(width: 8),
                                 const Expanded(
-                                  //Keyboard opens automatically when search activate
                                   child: TextField(
                                     decoration: InputDecoration(
                                       hintText: 'Search for food',
                                       border: InputBorder.none,
-                                      hintStyle: TextStyle(color: Colors.grey),
+                                      hintStyle: TextStyle(
+                                          color: Colors.grey),
                                     ),
                                   ),
                                 ),
-                                //Close button
                                 GestureDetector(
-                                  onTap: () {
-                                    setState(() {
-                                      FocusScope.of(context).unfocus();
-                                    });
-                                  },
-                                  child: const Icon(
-                                    Icons.close,
-                                    color: Colors.grey,
-                                    size: 20,
-                                  ),
+                                  onTap: () => setState(() =>
+                                      FocusScope.of(context).unfocus()),
+                                  child: const Icon(Icons.close,
+                                      color: Colors.grey, size: 20),
                                 ),
                               ],
                             ),
@@ -731,87 +646,75 @@ class _HomeState extends State<Home> {
           ],
         ),
       ),
-      // Normal nav bar - only shows when NOT searching
       bottomNavigationBar: _isSearching
           ? null
           : Padding(
-              padding: const EdgeInsets.only(left: 16, right: 16, bottom: 24),
-              child: SizedBox(
-                height: 80,
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: ClipRRect(
+        padding: const EdgeInsets.only(
+            left: 16, right: 16, bottom: 24),
+        child: SizedBox(
+          height: 80,
+          child: Row(
+            children: [
+              Expanded(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(50),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(
+                        sigmaX: 20, sigmaY: 20),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 8, horizontal: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.6),
                         borderRadius: BorderRadius.circular(50),
-                        child: BackdropFilter(
-                          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              vertical: 8,
-                              horizontal: 8,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.6),
-                              borderRadius: BorderRadius.circular(50),
-                              border: Border.all(
-                                color: Colors.white.withOpacity(0.8),
-                                width: 1,
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceAround,
-                              children: [
-                                _navItem(Icons.home_rounded, 'Home', 0),
-                                _navItem(Icons.rice_bowl_outlined, 'Menu', 1),
-                                _navItem(
-                                  Icons.shopping_cart_outlined,
-                                  'Cart',
-                                  2,
-                                ),
-                                _navItem(Icons.person_outline, 'Account', 3),
-                              ],
-                            ),
-                          ),
-                        ),
+                        border: Border.all(
+                            color: Colors.white.withOpacity(0.8),
+                            width: 1),
+                      ),
+                      child: Row(
+                        mainAxisAlignment:
+                        MainAxisAlignment.spaceAround,
+                        children: [
+                          _navItem(Icons.home_rounded, 'Home', 0),
+                          _navItem(
+                              Icons.rice_bowl_outlined, 'Menu', 1),
+                          _navItem(Icons.shopping_cart_outlined,
+                              'Cart', 2),
+                          _navItem(
+                              Icons.person_outline, 'Account', 3),
+                        ],
                       ),
                     ),
-
-                    const SizedBox(width: 12),
-
-                    //Search circle
-                    GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          _isSearching = true;
-                        });
-                      },
-                      child: ClipOval(
-                        child: BackdropFilter(
-                          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-                          child: Container(
-                            width: 63,
-                            height: 63,
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.6),
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: Colors.white.withOpacity(0.8),
-                                width: 1,
-                              ),
-                            ),
-                            child: const Icon(
-                              Icons.search,
-                              color: Colors.grey,
-                              size: 24,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ),
-            ),
+              const SizedBox(width: 12),
+              GestureDetector(
+                onTap: () => setState(() => _isSearching = true),
+                child: ClipOval(
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(
+                        sigmaX: 20, sigmaY: 20),
+                    child: Container(
+                      width: 63,
+                      height: 63,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.6),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                            color: Colors.white.withOpacity(0.8),
+                            width: 1),
+                      ),
+                      child: const Icon(Icons.search,
+                          color: Colors.grey, size: 24),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
