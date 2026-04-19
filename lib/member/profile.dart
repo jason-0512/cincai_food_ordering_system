@@ -23,6 +23,9 @@ class _ProfileState extends State<Profile> {
   bool _isSaving = false;
   bool _obscurePassword = true;
 
+  // Track which field is being edited
+  String? _editingField; // 'name', 'phone', 'email', 'password'
+
   String? currentEmail;
 
   @override
@@ -55,19 +58,7 @@ class _ProfileState extends State<Profile> {
   }
 
   Future<void> _update() async {
-
-    final name = _nameController.text.trim();
     final phone = _phoneController.text.trim();
-
-    if (name.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Name cannot be empty"),
-          backgroundColor: Color(0xFFCF0000),
-        ),
-      );
-      return;
-    }
 
     if (!RegExp(r'^01[0-9]{8,9}$').hasMatch(phone)) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -87,7 +78,10 @@ class _ProfileState extends State<Profile> {
       email: currentEmail!,
     );
 
-    setState(() => _isSaving = false);
+    setState(() {
+      _isSaving = false;
+      _editingField = null;
+    });
 
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -112,8 +106,7 @@ class _ProfileState extends State<Profile> {
       return;
     }
 
-    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
-        .hasMatch(newEmail)) {
+    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(newEmail)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text("Invalid email format"),
@@ -132,6 +125,7 @@ class _ProfileState extends State<Profile> {
 
     if (error == null) {
       currentEmail = newEmail;
+      setState(() => _editingField = null);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text("Email updated"),
@@ -142,7 +136,7 @@ class _ProfileState extends State<Profile> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(error),
-          backgroundColor: Color(0xFFCF0000),
+          backgroundColor: const Color(0xFFCF0000),
         ),
       );
     }
@@ -190,6 +184,7 @@ class _ProfileState extends State<Profile> {
 
     if (error == null) {
       _passwordController.clear();
+      setState(() => _editingField = null);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text("Password updated"),
@@ -200,7 +195,7 @@ class _ProfileState extends State<Profile> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(error),
-          backgroundColor: Color(0xFFCF0000),
+          backgroundColor: const Color(0xFFCF0000),
         ),
       );
     }
@@ -209,31 +204,67 @@ class _ProfileState extends State<Profile> {
   Future<void> _delete() async {
     final confirm = await showDialog<bool>(
       context: context,
-      barrierDismissible: false, // user must press button
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        title: const Text("Delete Account"),
-        content: const Text(
-          "This action is permanent.\n\nAll your data will be deleted and cannot be recovered.\n\nDo you really want to continue?",
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text("Cancel"),
+      barrierDismissible: false,
+      barrierColor: Colors.black.withOpacity(0.5),
+      builder: (context) => BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
+        child: Dialog(
+          backgroundColor: const Color(0xFFF5F5F7),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
           ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-            ),
-            child: const Text(
-              "Yes, Delete",
-              style: TextStyle(color: Colors.white),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text("Delete Account",
+                    style: TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 12),
+                const Text(
+                  "This action is permanent.\n\nAll your data will be deleted and cannot be recovered.\n\nDo you really want to continue?",
+                  textAlign: TextAlign.left,
+                  style: TextStyle(fontSize: 14, color: Colors.black),
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(context, false),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(50)),
+                          side: BorderSide(color: Colors.grey.shade300),
+                        ),
+                        child: const Text("Cancel",
+                            style: TextStyle(color: Colors.black)),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () => Navigator.pop(context, true),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFCF0000),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(50)),
+                          elevation: 0,
+                        ),
+                        child: const Text("Yes, Delete",
+                            style: TextStyle(fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
-        ],
+        ),
       ),
     );
 
@@ -242,9 +273,7 @@ class _ProfileState extends State<Profile> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => const Center(
-        child: CircularProgressIndicator(),
-      ),
+      builder: (_) => const Center(child: CircularProgressIndicator()),
     );
 
     await SupabaseService.deleteAccount(currentEmail!);
@@ -252,7 +281,6 @@ class _ProfileState extends State<Profile> {
     if (!mounted) return;
 
     Navigator.pop(context);
-
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(builder: (_) => const Login()),
@@ -260,81 +288,139 @@ class _ProfileState extends State<Profile> {
     );
   }
 
-  Widget _buildField({
-    required TextEditingController controller,
+  // Foodpanda-style info card
+  Widget _buildInfoCard({
     required String label,
+    required TextEditingController controller,
+    required String fieldKey,
     TextInputType keyboardType = TextInputType.text,
     bool isPassword = false,
     List<TextInputFormatter>? inputFormatters,
+    VoidCallback? onSave,
   }) {
-    return TextField(
-      controller: controller,
-      keyboardType: keyboardType,
-      inputFormatters: inputFormatters,
-      obscureText: isPassword ? _obscurePassword : false,
-      decoration: InputDecoration(
-        hintText: label,
-        hintStyle: const TextStyle(color: Colors.grey),
-        filled: true,
-        fillColor: const Color(0xFFF5F5F7),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(50),
-          borderSide: const BorderSide(color: Colors.grey, width: 1),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(50),
-          borderSide:
-          BorderSide(color: Colors.grey.withOpacity(0.4), width: 1),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(50),
-          borderSide: const BorderSide(color: Colors.grey, width: 1),
-        ),
-        contentPadding:
-        const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-        suffixIcon: isPassword
-            ? Padding(
-          padding: const EdgeInsets.only(right: 8.0),
-          child: IconButton(
-            icon: Icon(
-              _obscurePassword
-                  ? Icons.visibility_off
-                  : Icons.visibility,
-              color: Colors.grey,
-            ),
-            onPressed: () {
-              setState(() => _obscurePassword = !_obscurePassword);
-            },
-          ),
-        )
-            : null,
-      ),
-    );
-  }
+    final isEditing = _editingField == fieldKey;
 
-  Widget _buildButton({
-    required String label,
-    required VoidCallback onPressed,
-    bool isDestructive = false,
-  }) {
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton(
-        onPressed: onPressed,
-        style: ElevatedButton.styleFrom(
-          backgroundColor:
-          isDestructive ? Colors.red : const Color(0xFFCF0000),
-          minimumSize: const Size(double.infinity, 56),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(50),
-          ),
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _editingField = isEditing ? null : fieldKey;
+        });
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.8),
+          borderRadius: BorderRadius.circular(16),
         ),
-        child: Text(
-          label,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Label + pencil icon row
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.grey.shade500,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _editingField = isEditing ? null : fieldKey;
+                      });
+                    },
+                    child: Icon(
+                      isEditing ? Icons.close : Icons.edit_outlined,
+                      size: 18,
+                      color: Colors.grey.shade400,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+
+              // Value display or edit field
+              if (!isEditing)
+                Text(
+                  isPassword
+                      ? '••••••••••'
+                      : controller.text.isEmpty
+                      ? '—'
+                      : controller.text,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                )
+              else ...[
+                TextField(
+                  controller: controller,
+                  keyboardType: keyboardType,
+                  inputFormatters: inputFormatters,
+                  obscureText: isPassword ? _obscurePassword : false,
+                  autofocus: true,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  decoration: InputDecoration(
+                    isDense: true,
+                    contentPadding: EdgeInsets.zero,
+                    border: InputBorder.none,
+                    hintText: 'Enter $label',
+                    hintStyle: TextStyle(
+                      color: Colors.grey.shade400,
+                      fontWeight: FontWeight.normal,
+                    ),
+                    suffixIcon: isPassword
+                        ? IconButton(
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      icon: Icon(
+                        _obscurePassword
+                            ? Icons.visibility_off
+                            : Icons.visibility,
+                        color: Colors.grey,
+                        size: 18,
+                      ),
+                      onPressed: () => setState(
+                            () => _obscurePassword = !_obscurePassword,
+                      ),
+                    )
+                        : null,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: onSave,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFCF0000),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(50),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      elevation: 0,
+                    ),
+                    child: Text(
+                      'Save',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ],
           ),
         ),
       ),
@@ -343,160 +429,151 @@ class _ProfileState extends State<Profile> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F7),
-      body: SafeArea(
-        child: _loading
-            ? const Center(
-          child: CircularProgressIndicator(
-            color: Color(0xFFCF0000),
-          ),
-        )
-            : SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // ================= TOP BAR =================
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: GestureDetector(
-                        onTap: () => Navigator.pop(context),
-                        child: ClipOval(
-                          child: BackdropFilter(
-                            filter: ImageFilter.blur(
-                                sigmaX: 20, sigmaY: 20),
-                            child: Container(
-                              width: 54,
-                              height: 54,
-                              decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.6),
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: Colors.white.withOpacity(0.8),
-                                  width: 1,
-                                ),
+    return GestureDetector(
+      onTap: () => FocusScope.of(context).unfocus(),
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF5F5F7),
+        body: SafeArea(
+          child: _loading
+              ? const Center(
+            child: CircularProgressIndicator(color: Color(0xFFCF0000)),
+          )
+              : SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // ── Top bar ────────────────────────────────
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: GestureDetector(
+                          onTap: () => Navigator.pop(context),
+                          child: ClipOval(
+                            child: BackdropFilter(
+                              filter: ImageFilter.blur(
+                                sigmaX: 20,
+                                sigmaY: 20,
                               ),
-                              child: const Icon(
-                                Icons.arrow_back,
-                                color: Colors.black,
+                              child: Container(
+                                width: 54,
+                                height: 54,
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.6),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: Colors.white.withOpacity(0.8),
+                                    width: 1,
+                                  ),
+                                ),
+                                child: const Icon(
+                                  Icons.arrow_back,
+                                  color: Colors.black,
+                                ),
                               ),
                             ),
                           ),
                         ),
                       ),
-                    ),
-                    const Center(
-                      child: Text(
-                        'Profile',
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black,
+                      const Center(
+                        child: Text(
+                          'Profile',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
 
-              const SizedBox(height: 16),
-
-              // ================= FIELDS =================
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Name + Save Profile
-                    _buildField(
-                      controller: _nameController,
-                      label: 'Name',
-                    ),
-                    const SizedBox(height: 16),
-                    _buildField(
-                      controller: _phoneController,
-                      label: 'Phone Number',
-                      keyboardType: TextInputType.phone,
-                      inputFormatters: [
-                        FilteringTextInputFormatter.digitsOnly,
-                        LengthLimitingTextInputFormatter(11),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
-                    _isSaving
-                        ? const Center(
-                      child: CircularProgressIndicator(
-                        color: Color(0xFFCF0000),
+                // ── Personal details section ───────────────
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Personal details',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    )
-                        : _buildButton(
-                      label: 'Save Profile',
-                      onPressed: _update,
-                    ),
+                      const SizedBox(height: 16),
 
-                    const SizedBox(height: 32),
-
-                    // Email update
-                    const Text(
-                      'Update Email',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
+                      _buildInfoCard(
+                        label: 'Name',
+                        controller: _nameController,
+                        fieldKey: 'name',
+                        onSave: _isSaving ? null : _update,
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    _buildField(
-                      controller: _emailController,
-                      label: 'New Email',
-                      keyboardType: TextInputType.emailAddress,
-                    ),
-                    const SizedBox(height: 16),
-                    _buildButton(
-                      label: 'Update Email',
-                      onPressed: _updateEmail,
-                    ),
 
-                    const SizedBox(height: 32),
-
-                    // Password update
-                    const Text(
-                      'Update Password',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
+                      _buildInfoCard(
+                        label: 'Mobile Number',
+                        controller: _phoneController,
+                        fieldKey: 'phone',
+                        keyboardType: TextInputType.phone,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                          LengthLimitingTextInputFormatter(11),
+                        ],
+                        onSave: _isSaving ? null : _update,
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    _buildField(
-                      controller: _passwordController,
-                      label: 'New Password',
-                      isPassword: true,
-                    ),
-                    const SizedBox(height: 16),
-                    _buildButton(
-                      label: 'Update Password',
-                      onPressed: _updatePassword,
-                    ),
 
-                    const SizedBox(height: 32),
+                      _buildInfoCard(
+                        label: 'Email',
+                        controller: _emailController,
+                        fieldKey: 'email',
+                        keyboardType: TextInputType.emailAddress,
+                        onSave: _updateEmail,
+                      ),
 
-                    // Delete account
-                    _buildButton(
-                      label: 'Delete Account',
-                      onPressed: _delete,
-                      isDestructive: true,
-                    ),
+                      _buildInfoCard(
+                        label: 'Password',
+                        controller: _passwordController,
+                        fieldKey: 'password',
+                        isPassword: true,
+                        onSave: _updatePassword,
+                      ),
 
-                    const SizedBox(height: 32),
-                  ],
+                      const SizedBox(height: 24),
+
+                      // Delete account button
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: _delete,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFCF0000),
+                            minimumSize: const Size(double.infinity, 52),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(50),
+                            ),
+                            elevation: 0,
+                          ),
+                          child: const Text(
+                            'Delete Account',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 32),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

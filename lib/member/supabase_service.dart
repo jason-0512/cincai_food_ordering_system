@@ -34,7 +34,7 @@ class SupabaseService {
           .maybeSingle();
 
       if (existingPhone != null) {
-        return "Phone number already exists";
+        return "Mobile number already exists";
       }
 
       await _client.from('users').insert({

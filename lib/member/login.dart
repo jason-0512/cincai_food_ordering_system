@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:ui';
 import '../admin/adminPage.dart';
 import 'supabase_service.dart';
-import 'account.dart';
+import 'home.dart';
 import 'signup.dart';
 
 class Login extends StatefulWidget {
@@ -30,7 +30,6 @@ class _LoginState extends State<Login> {
     final email = _emailController.text.trim();
     final password = _passwordController.text;
 
-    // ================= VALIDATION =================
     if (email.isEmpty || password.isEmpty) {
       _showSnackBar("Please enter email and password");
       return;
@@ -62,17 +61,13 @@ class _LoginState extends State<Login> {
     if (role == 'admin') {
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(
-          builder: (_) => const AdminPage(),
-        ),
+        MaterialPageRoute(builder: (_) => const AdminPage()),
             (route) => false,
       );
     } else {
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(
-          builder: (_) => Account(email: user['email']),
-        ),
+        MaterialPageRoute(builder: (_) => Home(userEmail: user['email'])),
             (route) => false,
       );
     }
@@ -101,11 +96,15 @@ class _LoginState extends State<Login> {
               child: Stack(
                 alignment: Alignment.center,
                 children: [
-                  // Back button
+                  // Back button — navigates to Home
                   Align(
                     alignment: Alignment.centerLeft,
                     child: GestureDetector(
-                      onTap: () => Navigator.pop(context),
+                      onTap: () => Navigator.pushAndRemoveUntil(
+                        context,
+                        MaterialPageRoute(builder: (_) => const Home()),
+                            (route) => false,
+                      ),
                       child: ClipOval(
                         child: BackdropFilter(
                           filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
@@ -159,7 +158,6 @@ class _LoginState extends State<Login> {
 
             const SizedBox(height: 40),
 
-            // Email and Password fields
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: Column(
@@ -175,29 +173,17 @@ class _LoginState extends State<Login> {
                       fillColor: const Color(0xFFF5F5F7),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(50),
-                        borderSide: const BorderSide(
-                          color: Colors.grey,
-                          width: 1,
-                        ),
+                        borderSide: const BorderSide(color: Colors.grey, width: 1),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(50),
-                        borderSide: BorderSide(
-                          color: Colors.grey.withOpacity(0.4),
-                          width: 1,
-                        ),
+                        borderSide: BorderSide(color: Colors.grey.withOpacity(0.4), width: 1),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(50),
-                        borderSide: const BorderSide(
-                          color: Colors.grey,
-                          width: 1,
-                        ),
+                        borderSide: const BorderSide(color: Colors.grey, width: 1),
                       ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 16,
-                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                     ),
                   ),
 
@@ -214,43 +200,25 @@ class _LoginState extends State<Login> {
                       fillColor: const Color(0xFFF5F5F7),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(50),
-                        borderSide: const BorderSide(
-                          color: Colors.grey,
-                          width: 1,
-                        ),
+                        borderSide: const BorderSide(color: Colors.grey, width: 1),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(50),
-                        borderSide: BorderSide(
-                          color: Colors.grey.withOpacity(0.4),
-                          width: 1,
-                        ),
+                        borderSide: BorderSide(color: Colors.grey.withOpacity(0.4), width: 1),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(50),
-                        borderSide: const BorderSide(
-                          color: Colors.grey,
-                          width: 1,
-                        ),
+                        borderSide: const BorderSide(color: Colors.grey, width: 1),
                       ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 16,
-                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                       suffixIcon: Padding(
                         padding: const EdgeInsets.only(right: 8.0),
                         child: IconButton(
                           icon: Icon(
-                            _obscurePassword
-                                ? Icons.visibility_off
-                                : Icons.visibility,
+                            _obscurePassword ? Icons.visibility_off : Icons.visibility,
                             color: Colors.grey,
                           ),
-                          onPressed: () {
-                            setState(() {
-                              _obscurePassword = !_obscurePassword;
-                            });
-                          },
+                          onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                         ),
                       ),
                     ),
@@ -263,20 +231,13 @@ class _LoginState extends State<Login> {
                     children: [
                       const Text(
                         "Don't have an account? ",
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.black,
-                          fontWeight: FontWeight.bold,
-                        ),
+                        style: TextStyle(fontSize: 14, color: Colors.black, fontWeight: FontWeight.bold),
                       ),
                       GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (_) => const Signup()),
-                          );
-                        },
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const Signup()),
+                        ),
                         child: const Text(
                           'Sign Up',
                           style: TextStyle(
@@ -299,16 +260,14 @@ class _LoginState extends State<Login> {
                       onPressed: _isLoading ? null : _handleLogin,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFFCF0000),
-                        disabledBackgroundColor:
-                        Colors.grey.withOpacity(0.3),
+                        disabledBackgroundColor: Colors.grey.withOpacity(0.3),
                         minimumSize: const Size(double.infinity, 56),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(50),
                         ),
                       ),
                       child: _isLoading
-                          ? const CircularProgressIndicator(
-                          color: Colors.white)
+                          ? const CircularProgressIndicator(color: Colors.white)
                           : const Text(
                         'Login',
                         style: TextStyle(
