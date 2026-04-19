@@ -4,8 +4,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 // ─────────────────────────────────────────────
 // Supabase credentials
 // ─────────────────────────────────────────────
-const String supabaseURL = 'https://wyvoeclxjnsxhncxqnrd.supabase.co';
-const String supabaseKey = 'sb_secret_j8gYAxH8o8Ply0dq1_3ZGA_blvAk5nI';
+// const String supabaseURL = 'https://wyvoeclxjnsxhncxqnrd.supabase.co';
+// const String supabaseKey = 'sb_secret_j8gYAxH8o8Ply0dq1_3ZGA_blvAk5nI';
 
 // ─────────────────────────────────────────────
 // Enums
