@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'dart:ui';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'order_detail.dart';
@@ -20,62 +21,220 @@ class _OrderState extends State<Order> {
   List<Map<String, dynamic>> _orders = [];
 
   bool _isLoading = true;
+  bool _isFetching = false;
 
-  //Hold the realtime connection
-  RealtimeChannel? _subscription;
+  //Hold the polling timer
+  Timer? _pollingTimer;
 
   @override
   void initState() {
-    // TODO: implement initState
     super.initState();
-    //When pager opens, 2 things:
-    //1. Fetch orders from Supabase
-    //2. Start listening for realtime status change
     _fetchOrders();
-    // _subscribeToOrders(); // uncomment later
+    // Poll every 2 seconds for status updates
+    _pollingTimer = Timer.periodic(const Duration(seconds: 2), (_) {
+      if (mounted) _fetchOrders(silent: true);
+    });
   }
 
   @override
   void dispose() {
-    // TODO: implement dispose
-    //When page close, cancel realtime connection
-    _subscription?.unsubscribe();
+    _pollingTimer?.cancel();
     super.dispose();
   }
 
-  Future<void> _fetchOrders() async {
-    // TODO: replace with real Supabase fetch
-    setState(() {
-      _orders = [
-        {
-          'order_id': 1,
-          'table_number': 5,
-          'order_type': 'dine_in',
-          'created_at': '2026-04-17T23:00:00+08:00',
-          'status': 'Pending',
-          'items': [
-            {'name': 'Lu Rou Fan', 'quantity': 1},
-            {'name': 'Taiwanese Sticky Rice', 'quantity': 2},
-            {'name': 'Braised Pork Rice', 'quantity': 1},
+  Future<void> _fetchOrders({bool silent = false}) async {
+    if (_isFetching) return; // prevent concurrent fetches
+    _isFetching = true;
+    // If silent, don't show spinner — used for polling refresh
+    if (!silent) setState(() => _isLoading = true);
+    try {
+      //Step 1: Get userId from email
+      final userResult = await _client
+          .from('users')
+          .select('id')
+          .eq('email', widget.email.trim())
+          .maybeSingle();
+
+      if (userResult == null) {
+        _isFetching = false;
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      final userId = userResult['id'] as int;
+
+      // Step 2: Get all active orders, join payment to filter sent+paid
+      final rawOrders = await _client
+          .from('orders')
+          .select('*, payment!left(status)')
+          .eq('user_id', userId)
+          .inFilter('status', ['pending', 'preparing', 'ready', 'sent'])
+          .order('created_at', ascending: false);
+
+      // Hide only when order is 'sent' AND payment is 'success'
+      final orderResult = (rawOrders as List).where((order) {
+        final orderStatus = order['status'] as String?;
+        final payments = order['payment'] as List?;
+        final paymentSuccess = payments != null &&
+            payments.any((p) => p['status'] == 'success');
+        if (orderStatus == 'sent' && paymentSuccess) return false;
+        return true;
+      }).toList();
+
+      //Step 3: For each order, fetch its items
+      final List<Map<String, dynamic>> ordersWithItems = [];
+
+      for (final order in orderResult) {
+        //Fetch items for this order and product to get name
+        final itemResult = await _client
+            .from('order_item')
+            .select('*, product(name)')
+            .eq('order_id', order['order_id']);
+
+        //Build item list with name and ordered quantity only
+        final item = (itemResult as List)
+            .map(
+              (item) => {
+            //Get prod name, fallback to Unknown
+            'name': item['product']?['name'] ?? 'Unknown',
+            //Get ordered quantity
+            'quantity': item['qty'] as int,
+          },
+        )
+            .toList();
+
+        //Combine order data with its item list
+        ordersWithItems.add({
+          //Spread all order columns
+          ...order,
+          //Add items list to order map
+          'items': item,
+        });
+      }
+
+      if (!mounted) return;
+
+      //Step 4: Save to state and hide spinner
+      setState(() {
+        //Store order with item to display
+        _orders = ordersWithItems;
+        _isLoading = false;
+      });
+      _isFetching = false;
+    } catch (e) {
+      print('fetchorders errors: $e');
+      _isFetching = false;
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+    }
+  }
+
+  // ── Cancel order — only allowed for pending status ────────────
+  Future<void> _cancelOrder(int orderId) async {
+    // Show confirmation dialog first
+    final confirmed = await showDialog<bool>(
+      context: context,
+      barrierColor: Colors.black.withOpacity(0.5),
+      builder: (context) => BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
+        child: AlertDialog(
+          backgroundColor: const Color(0xFFF5F5F7),
+          shape:
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text(
+            'Cancel Order?',
+            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black),
+          ),
+          content: const Text(
+            'Are you sure you want to cancel this order? This action cannot be undone.',
+            style: TextStyle(fontSize: 14, color: Colors.grey),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child:
+              const Text('No, Keep it', style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFCF0000),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(50)),
+              ),
+              child: const Text('Yes, Cancel',
+                  style: TextStyle(color: Colors.white)),
+            ),
           ],
-        },
-      ];
-      _isLoading = false;
-    });
+        ),
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      // Double-check status is still pending before cancelling
+      final latest = await _client
+          .from('orders')
+          .select('status')
+          .eq('order_id', orderId)
+          .single();
+
+      if (latest['status'] != 'pending') {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text(
+                'Order can no longer be cancelled — it is already being prepared.'),
+            backgroundColor: Color(0xFFCF0000),
+            behavior: SnackBarBehavior.floating,
+          ));
+        }
+        return;
+      }
+
+      // Update status to cancelled in Supabase
+      await _client
+          .from('orders')
+          .update({'status': 'cancelled'})
+          .eq('order_id', orderId);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Order has been cancelled.'),
+          backgroundColor: Color(0xFF2E7D32),
+          behavior: SnackBarBehavior.floating,
+        ));
+        // Refresh list immediately
+        _fetchOrders();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Failed to cancel order: $e'),
+          backgroundColor: const Color(0xFFCF0000),
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
+    }
   }
 
   Color _statusColor(String? status) {
     switch (status?.toLowerCase()) {
-      case 'pending':
-        return const Color(0xFFFFA000);
-      case 'preparing':
-        return const Color(0xFFFF6F00);
-      case 'ready':
-        return const Color(0xFF2E7D32);
-      case 'served':
-        return Colors.grey;
-      default:
-        return Colors.grey;
+      case 'pending':   return const Color(0xFFFFA000);
+      case 'preparing': return const Color(0xFFFF6F00);
+      case 'ready':     return const Color(0xFF2E7D32);
+      case 'sent':      return Colors.grey;
+      default:          return Colors.grey;
+    }
+  }
+
+  String _statusLabel(String? status) {
+    switch (status?.toLowerCase()) {
+      case 'pending':   return 'Pending';
+      case 'preparing': return 'Preparing';
+      case 'ready':     return 'Ready';
+      case 'sent':      return 'Sent';
+      default:          return 'Unknown';
     }
   }
 
@@ -121,16 +280,16 @@ class _OrderState extends State<Order> {
       backgroundColor: const Color(0xFFF5F5F7),
       body: SafeArea(
         child: Column(
-          crossAxisAlignment: .start,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: Stack(
-                alignment: .center,
+                alignment: Alignment.center,
                 children: [
                   //Close button
                   Align(
-                    alignment: .centerLeft,
+                    alignment: Alignment.centerLeft,
                     child: GestureDetector(
                       onTap: () {
                         //Close button and back to account page
@@ -161,7 +320,7 @@ class _OrderState extends State<Order> {
                       'My Orders',
                       style: TextStyle(
                         fontSize: 24,
-                        fontWeight: .bold,
+                        fontWeight: FontWeight.bold,
                         color: Colors.black,
                       ),
                     ),
@@ -172,16 +331,16 @@ class _OrderState extends State<Order> {
             // ===== CONTENT =====
             Expanded(
               child: _isLoading
-                  // Show spinner while fetching
+              // Show spinner while fetching
                   ? const Center(
-                      child: CircularProgressIndicator(
-                        color: Color(0xFFCF0000),
-                      ),
-                    )
+                child: CircularProgressIndicator(
+                  color: Color(0xFFCF0000),
+                ),
+              )
                   : _orders.isEmpty
-                  // No orders → show empty state
+              // No orders → show empty state
                   ? _buildEmptyState()
-                  // Has orders → show list
+              // Has orders → show list
                   : _buildOrderList(),
             ),
           ],
@@ -194,13 +353,13 @@ class _OrderState extends State<Order> {
   Widget _buildEmptyState() {
     return Center(
       child: Column(
-        mainAxisAlignment: .center,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           const Text(
             'No orders yet',
             style: TextStyle(
               fontSize: 20,
-              fontWeight: .bold,
+              fontWeight: FontWeight.bold,
               color: Colors.black,
             ),
           ),
@@ -208,7 +367,7 @@ class _OrderState extends State<Order> {
 
           const Text(
             'Place an order and it will show here.',
-            textAlign: .center,
+            textAlign: TextAlign.center,
             style: TextStyle(fontSize: 14, color: Colors.grey),
           ),
         ],
@@ -219,7 +378,7 @@ class _OrderState extends State<Order> {
   Widget _buildOrderList() {
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      //How many order card to buid
+      //How many order card to build
       itemCount: _orders.length,
       itemBuilder: (context, index) {
         //Get current order
@@ -237,8 +396,11 @@ class _OrderState extends State<Order> {
         //Calculate total order food item quantity
         final totalQty = _totalFoodQuantity(items);
 
+        // Only pending orders can be cancelled
+        final isPending = status?.toLowerCase() == 'pending';
+
         return Padding(
-          padding: const EdgeInsetsGeometry.only(bottom: 12),
+          padding: const EdgeInsets.only(bottom: 12),
           child: GestureDetector(
             onTap: () {
               //Navigate to OrderDetail page
@@ -253,46 +415,49 @@ class _OrderState extends State<Order> {
               );
             },
             child: ClipRRect(
-              borderRadius: .circular(16),
+              borderRadius: BorderRadius.circular(16),
               child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 20,sigmaY: 20),
+                filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
                 child: Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.6),
-                    borderRadius: .circular(16),
+                    borderRadius: BorderRadius.circular(16),
                     border: Border.all(
                       color: Colors.white.withOpacity(0.8),
                       width: 1,
                     ),
                   ),
                   child: Column(
-                    crossAxisAlignment: .start,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       //Order ID + Status
                       Row(
-                        mainAxisAlignment: .spaceBetween,
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
                             'Order #${order['order_id']}',
                             style: const TextStyle(
                               fontSize: 16,
-                              fontWeight: .bold,
+                              fontWeight: FontWeight.bold,
                               color: Colors.black,
                             ),
                           ),
 
                           Container(
-                            padding: EdgeInsets.symmetric(horizontal: 10,vertical: 4),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
                             decoration: BoxDecoration(
                               color: statusColor.withOpacity(0.15),
-                              borderRadius: .circular(50),
+                              borderRadius: BorderRadius.circular(50),
                             ),
                             child: Text(
-                              status ?? 'Unknown',
+                              _statusLabel(status),
                               style: TextStyle(
                                 fontSize: 12,
-                                fontWeight: .w600,
+                                fontWeight: FontWeight.w600,
                                 color: statusColor,
                               ),
                             ),
@@ -351,13 +516,46 @@ class _OrderState extends State<Order> {
 
                       const SizedBox(height: 15),
 
-                      Text(
-                        'Total $totalQty item(s)',
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.grey,
-                        ),
+                      // Total qty + Cancel button row
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Total $totalQty item(s)',
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.grey,
+                            ),
+                          ),
+
+                          // Cancel button — only shown for pending orders
+                          if (isPending)
+                            GestureDetector(
+                              // Stop tap from also triggering the card's onTap
+                              onTap: () => _cancelOrder(order['order_id'] as int),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 14, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFCF0000).withOpacity(0.08),
+                                  borderRadius: BorderRadius.circular(50),
+                                  border: Border.all(
+                                    color: const Color(0xFFCF0000).withOpacity(0.4),
+                                    width: 1,
+                                  ),
+                                ),
+                                child: const Text(
+                                  'Cancel Order',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFFCF0000),
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
                     ],
                   ),

@@ -58,7 +58,19 @@ class _ProfileState extends State<Profile> {
   }
 
   Future<void> _update() async {
+    final name = _nameController.text.trim();
     final phone = _phoneController.text.trim();
+
+    // Name cannot be empty
+    if (name.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Name cannot be empty"),
+          backgroundColor: Color(0xFFCF0000),
+        ),
+      );
+      return;
+    }
 
     if (!RegExp(r'^01[0-9]{8,9}$').hasMatch(phone)) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -206,7 +218,7 @@ class _ProfileState extends State<Profile> {
       context: context,
       barrierDismissible: false,
       barrierColor: Colors.black.withOpacity(0.5),
-      builder: (context) => BackdropFilter(
+      builder: (ctx) => BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
         child: Dialog(
           backgroundColor: const Color(0xFFF5F5F7),
@@ -218,9 +230,11 @@ class _ProfileState extends State<Profile> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text("Delete Account",
-                    style: TextStyle(
-                        fontSize: 18, fontWeight: FontWeight.bold)),
+                const Text(
+                  "Delete Account",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
                 const SizedBox(height: 12),
                 const Text(
                   "This action is permanent.\n\nAll your data will be deleted and cannot be recovered.\n\nDo you really want to continue?",
@@ -232,7 +246,7 @@ class _ProfileState extends State<Profile> {
                   children: [
                     Expanded(
                       child: OutlinedButton(
-                        onPressed: () => Navigator.pop(context, false),
+                        onPressed: () => Navigator.pop(ctx, false),
                         style: OutlinedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           shape: RoundedRectangleBorder(
@@ -246,7 +260,7 @@ class _ProfileState extends State<Profile> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: ElevatedButton(
-                        onPressed: () => Navigator.pop(context, true),
+                        onPressed: () => Navigator.pop(ctx, true),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFFCF0000),
                           foregroundColor: Colors.white,

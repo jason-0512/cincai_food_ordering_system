@@ -1,40 +1,124 @@
+import 'package:cincai_food_ordering_system/admin/product_management.dart';
 import 'package:cincai_food_ordering_system/admin/promotion_management.dart';
 import 'package:flutter/material.dart';
 
 class AdminPage extends StatelessWidget {
-  const AdminPage({super.key});
+  final int userId;
+
+  const AdminPage({
+    super.key,
+    required this.userId,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Admin Page')),
-      body: Center(
-        child: ElevatedButton(
-          onPressed: () {
-            Navigator.push(
+      appBar: AppBar(
+        title: const Text('Admin Panel'),
+        backgroundColor: const Color(0xFFCF0000),
+        foregroundColor: Colors.white,
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          _sectionLabel('Catalogue'),
+          _adminTile(
+            context,
+            icon: Icons.grid_view_rounded,
+            title: 'Product Management',
+            subtitle: 'Add, edit and remove menu items',
+            onTap: () => Navigator.push(
               context,
-              MaterialPageRoute(
-                builder: (_) => const PromotionManagement(),
-              ),
-            );
-          },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFFCF0000),
-            padding: const EdgeInsets.symmetric(
-              horizontal: 24,
-              vertical: 16,
-            ),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+              MaterialPageRoute(builder: (_) => ProductManagement(adminId: userId)),
             ),
           ),
-          child: const Text(
-            'Promotion Management',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
+          const SizedBox(height: 10),
+          _adminTile(
+            context,
+            icon: Icons.card_giftcard_rounded,
+            title: 'Promotion Management',
+            subtitle: 'Manage discount codes and offers',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const PromotionManagement()),
             ),
+          ),
+          const SizedBox(height: 20),
+          _sectionLabel('System'),
+          _adminTile(
+            context,
+            icon: Icons.description_outlined,
+            title: 'Audit Log',
+            subtitle: 'Track admin activity — coming soon',
+            enabled: false,
+            onTap: null,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _sectionLabel(String label) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Text(
+        label.toUpperCase(),
+        style: const TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 1.0,
+          color: Colors.grey,
+        ),
+      ),
+    );
+  }
+
+  Widget _adminTile(
+      BuildContext context, {
+        required IconData icon,
+        required String title,
+        required String subtitle,
+        required VoidCallback? onTap,
+        bool enabled = true,
+      }) {
+    return Opacity(
+      opacity: enabled ? 1.0 : 0.45,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey.shade200),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF0F0),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, size: 18, color: const Color(0xFFCF0000)),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title,
+                        style: const TextStyle(
+                            fontSize: 14, fontWeight: FontWeight.w500)),
+                    Text(subtitle,
+                        style: const TextStyle(
+                            fontSize: 12, color: Colors.grey)),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right, size: 16, color: Colors.grey),
+            ],
           ),
         ),
       ),

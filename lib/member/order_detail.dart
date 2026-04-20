@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:ui';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'order.dart';
 
 class OrderDetail extends StatefulWidget {
   final int orderId;
@@ -8,11 +9,15 @@ class OrderDetail extends StatefulWidget {
   //True -> payment page show view my orders button
   //False -> myorders page
   final bool fromPayment;
+  final bool showSuccess;
+  final String email;
 
   const OrderDetail({
     super.key,
     required this.orderId,
     this.fromPayment = false,
+    this.showSuccess = false,
+    this.email='',
   });
 
   @override
@@ -20,71 +25,98 @@ class OrderDetail extends StatefulWidget {
 }
 
 class _OrderDetailState extends State<OrderDetail> {
-  final _cleint = Supabase.instance.client;
+  final _client = Supabase.instance.client;
 
-  //Store the order data
   Map<String, dynamic>? _order;
-
-  //Store the list of food items in this order
   List<Map<String, dynamic>> _items = [];
-
   bool _isLoading = true;
+  String _email = '';
 
   @override
   void initState() {
-    // TODO: implement initState
     super.initState();
-    // TODO: replace with real Supabase fetch later
-    // For now use dummy data to test UI
-    _isLoading = false;
-    _order = {
-      'order_id': 1,
-      'table_number': 5,
-      'order_type': 'dine_in',
-      'created_at': '2026-04-17T23:00:00+08:00',
-      'gross_total': 60.60,
-    };
-    _items = [
-      {'name': 'Lu Rou Fan', 'quantity': 1, 'subtotal': 13.90},
-      {'name': 'Taiwanese Sticky Rice', 'quantity': 2, 'subtotal': 32.80},
-      {'name': 'Braised Pork Rice', 'quantity': 1, 'subtotal': 13.90},
-    ];
+    _fetchOrder();
+    if (widget.showSuccess) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Payment successful! Your order has been placed.'),
+            backgroundColor: Color(0xFF2E7D32),
+            behavior: SnackBarBehavior.floating,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      });
+    }
   }
 
-  // Formats date from Supabase into readable string
+  Future<void> _fetchOrder() async {
+    try {
+      final orderResult = await _client
+          .from('orders')
+          .select()
+          .eq('order_id', widget.orderId)
+          .single();
+
+      final itemsResult = await _client
+          .from('order_item')
+          .select('*,product(name)')
+          .eq('order_id', widget.orderId);
+
+      if (!mounted) return;
+
+      final userResult = await _client
+          .from('users')
+          .select('email')
+          .eq('id', orderResult['user_id'])
+          .single();
+
+      setState(() {
+        _order = orderResult;
+        _email = userResult['email'] as String;
+        _items = (itemsResult as List).map((item) {
+          return {
+            'name':     item['product']?['name'] ?? 'Unknown',
+            'quantity': item['qty'] as int,
+            'subtotal': (item['subtotal'] as num).toDouble(),
+            'is_addon': item['is_addon'] ?? false,
+          };
+        }).toList();
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+    }
+  }
+
   String _formatDate(String? dateStr) {
     if (dateStr == null) return '';
     try {
       final date = DateTime.parse(dateStr).toLocal();
-      final months = [
-        'Jan',
-        'Feb',
-        'Mar',
-        'Apr',
-        'May',
-        'Jun',
-        'Jul',
-        'Aug',
-        'Sep',
-        'Oct',
-        'Nov',
-        'Dec',
-      ];
+      final months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
       final hour = date.hour.toString().padLeft(2, '0');
-      final min = date.minute.toString().padLeft(2, '0');
+      final min  = date.minute.toString().padLeft(2, '0');
       return '${date.day} ${months[date.month - 1]} ${date.year}  $hour:$min';
     } catch (_) {
       return '';
     }
   }
 
-  // Helper method to build each bill row
-  Widget _buildBillRow(String label, String amount) {
+  Widget _buildBillRow(String label, String amount, {bool bold = false, Color? amountColor}) {
     return Row(
-      mainAxisAlignment: .spaceBetween,
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: const TextStyle(fontSize: 14, color: Colors.grey)),
-        Text(amount, style: const TextStyle(fontSize: 14, color: Colors.grey)),
+        Text(label,
+            style: TextStyle(
+                fontSize: 14,
+                fontWeight: bold ? FontWeight.bold : FontWeight.normal,
+                color: bold ? Colors.black : Colors.grey)),
+        Text(amount,
+            style: TextStyle(
+                fontSize: 14,
+                fontWeight: bold ? FontWeight.bold : FontWeight.normal,
+                color: amountColor ?? (bold ? Colors.black : Colors.grey))),
       ],
     );
   }
@@ -95,22 +127,18 @@ class _OrderDetailState extends State<OrderDetail> {
       backgroundColor: const Color(0xFFF5F5F7),
       body: SafeArea(
         child: Column(
-          crossAxisAlignment: .start,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
-              padding: const EdgeInsetsGeometry.all(16),
+              padding: const EdgeInsets.all(16),
               child: Stack(
-                alignment: .center,
+                alignment: Alignment.center,
                 children: [
-                  //Close button - only shows when from MyOrders page
                   if (!widget.fromPayment)
                     Align(
-                      alignment: .centerLeft,
+                      alignment: Alignment.centerLeft,
                       child: GestureDetector(
-                        onTap: () {
-                          //Close and go back to MyOrders page
-                          Navigator.pop(context);
-                        },
+                        onTap: () => Navigator.pop(context),
                         child: ClipOval(
                           child: BackdropFilter(
                             filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
@@ -125,10 +153,7 @@ class _OrderDetailState extends State<OrderDetail> {
                                   width: 1,
                                 ),
                               ),
-                              child: const Icon(
-                                Icons.close,
-                                color: Colors.black,
-                              ),
+                              child: const Icon(Icons.close, color: Colors.black),
                             ),
                           ),
                         ),
@@ -139,7 +164,7 @@ class _OrderDetailState extends State<OrderDetail> {
                       'Order Details',
                       style: TextStyle(
                         fontSize: 24,
-                        fontWeight: .bold,
+                        fontWeight: FontWeight.bold,
                         color: Colors.black,
                       ),
                     ),
@@ -149,24 +174,9 @@ class _OrderDetailState extends State<OrderDetail> {
             ),
             Expanded(
               child: _isLoading
-              // Show spinner while loading
-                  ? const Center(
-                child: CircularProgressIndicator(
-                  color: Color(0xFFCF0000),
-                ),
-              )
+                  ? const Center(child: CircularProgressIndicator(color: Color(0xFFCF0000)))
                   : _order == null
-              // Order not found
-                  ? const Center(
-                child: Text(
-                  'Order not found',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.grey,
-                  ),
-                ),
-              )
-              // Show full order details
+                  ? const Center(child: Text('Order not found', style: TextStyle(fontSize: 16, color: Colors.grey)))
                   : _buildContent(),
             ),
           ],
@@ -176,23 +186,25 @@ class _OrderDetailState extends State<OrderDetail> {
   }
 
   Widget _buildContent() {
-    //Calculte SST and Service Charge from gross total
-    final grossTotal = (_order!['gross_total'] as num?)?.toDouble() ?? 0.0;
-    final discount = 0.0; // TODO: fetch from promotion later
-    final sst = grossTotal * 0.06;
-    final serviceCharge = grossTotal * 0.10;
-    final total = grossTotal - discount + sst + serviceCharge;
+    // Use values directly from DB — no recalculation
+    final grossTotal      = (_order!['gross_total']      as num?)?.toDouble() ?? 0.0;
+    final totalAmount     = (_order!['total_amount']     as num?)?.toDouble() ?? 0.0;
+    final discountAmount  = (_order!['discounted_amount'] as num?)?.toDouble() ?? 0.0;
+    final discountedSub   = (grossTotal - discountAmount).clamp(0.0, double.infinity);
+    final sst             = discountedSub * 0.06;
+    final serviceCharge   = discountedSub * 0.10;
+    final deliveryFee     = (_order!['delivery_fee']     as num?)?.toDouble() ?? 0.0;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
-        crossAxisAlignment: .start,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 8),
 
-          //Order Info
+          // Order Info card
           ClipRRect(
-            borderRadius: .circular(16),
+            borderRadius: BorderRadius.circular(16),
             child: BackdropFilter(
               filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
               child: Container(
@@ -201,54 +213,33 @@ class _OrderDetailState extends State<OrderDetail> {
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.6),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: Colors.white.withOpacity(0.8),
-                    width: 1,
-                  ),
+                  border: Border.all(color: Colors.white.withOpacity(0.8), width: 1),
                 ),
                 child: Column(
-                  crossAxisAlignment: .start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       'Order #${_order!['order_id']}',
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: .bold,
-                        color: Colors.black,
-                      ),
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black),
                     ),
                     const SizedBox(height: 8),
-
-                    //Table number + Order type
                     Row(
                       children: [
                         Text(
                           'Table ${_order!['table_number'] ?? '-'}',
-                          style: const TextStyle(
-                            fontSize: 13,
-                            color: Colors.grey,
-                          ),
+                          style: const TextStyle(fontSize: 13, color: Colors.grey),
                         ),
                         const SizedBox(width: 8),
-
                         Text(
                           _order!['order_type'] ?? '-',
-                          style: const TextStyle(
-                            fontSize: 13,
-                            color: Colors.grey,
-                          ),
+                          style: const TextStyle(fontSize: 13, color: Colors.grey),
                         ),
                       ],
                     ),
                     const SizedBox(height: 6),
-
-                    //Date and time
                     Text(
                       _formatDate(_order!['created_at']),
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: Colors.grey,
-                      ),
+                      style: const TextStyle(fontSize: 13, color: Colors.grey),
                     ),
                   ],
                 ),
@@ -257,9 +248,9 @@ class _OrderDetailState extends State<OrderDetail> {
           ),
           const SizedBox(height: 12),
 
-          //Item and Bill
+          // Items + Bill card
           ClipRRect(
-            borderRadius: .circular(16),
+            borderRadius: BorderRadius.circular(16),
             child: BackdropFilter(
               filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
               child: Container(
@@ -268,92 +259,85 @@ class _OrderDetailState extends State<OrderDetail> {
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.6),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: Colors.white.withOpacity(0.8),
-                    width: 1,
-                  ),
+                  border: Border.all(color: Colors.white.withOpacity(0.8), width: 1),
                 ),
                 child: Column(
-                  crossAxisAlignment: .start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    //Food Item List
-                    ..._items.map((item) {
+                    // Original items
+                    ..._items.where((item) => item['is_addon'] == false).map((item) {
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 8),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            // Quantity x Name on left
-                            Text(
-                              '${item['quantity']}x  ${item['name']}',
-                              style: const TextStyle(
-                                fontSize: 14,
-                                color: Colors.black,
-                              ),
-                            ),
-                            // Subtotal on right
-                            Text(
-                              'RM ${(item['subtotal'] as num).toStringAsFixed(
-                                  2)}',
-                              style: const TextStyle(
-                                fontSize: 14,
-                                color: Colors.black,
-                              ),
-                            ),
+                            Text('${item['quantity']}x  ${item['name']}',
+                                style: const TextStyle(fontSize: 14, color: Colors.black)),
+                            Text('RM ${(item['subtotal'] as num).toStringAsFixed(2)}',
+                                style: const TextStyle(fontSize: 14, color: Colors.black)),
                           ],
                         ),
                       );
-                    }).toList(),
+                    }),
+
+                    // Add-on items
+                    if (_items.any((item) => item['is_addon'] == true)) ...[
+                      const Divider(height: 16, color: Color(0xFFEEEEEE)),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFFA000).withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(50),
+                            ),
+                            child: const Text('Add On',
+                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFFFFA000))),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      ..._items.where((item) => item['is_addon'] == true).map((item) {
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text('${item['quantity']}x  ${item['name']}',
+                                  style: const TextStyle(fontSize: 14, color: Colors.black)),
+                              Text('RM ${(item['subtotal'] as num).toStringAsFixed(2)}',
+                                  style: const TextStyle(fontSize: 14, color: Colors.black)),
+                            ],
+                          ),
+                        );
+                      }),
+                    ],
+
+                    const Divider(height: 24, color: Color(0xFFEEEEEE)),
+
+                    _buildBillRow('Gross Total', 'RM ${grossTotal.toStringAsFixed(2)}'),
+                    if (discountAmount > 0) ...[
+                      const SizedBox(height: 6),
+                      _buildBillRow('Discount', '- RM ${discountAmount.toStringAsFixed(2)}', amountColor: const Color(0xFFCF0000)),
+                      const SizedBox(height: 6),
+                      _buildBillRow('Subtotal after Discount', 'RM ${discountedSub.toStringAsFixed(2)}'),
+                    ],
+                    const SizedBox(height: 6),
+                    _buildBillRow('SST (6%)', 'RM ${sst.toStringAsFixed(2)}'),
+                    const SizedBox(height: 6),
+                    _buildBillRow('Service Charge (10%)', 'RM ${serviceCharge.toStringAsFixed(2)}'),
+                    if (deliveryFee > 0) ...[
+                      const SizedBox(height: 6),
+                      _buildBillRow('Delivery Fee', 'RM ${deliveryFee.toStringAsFixed(2)}'),
+                    ],
+
                     const Divider(height: 24, color: Color(0xFFEEEEEE)),
 
                     _buildBillRow(
-                      'Gross Total',
-                      'RM ${grossTotal.toStringAsFixed(2)}',
-                    ),
-
-                    const SizedBox(height: 6),
-
-                    _buildBillRow(
-                      'Discount',
-                      '- RM ${discount.toStringAsFixed(2)}',
-                    ),
-
-                    const SizedBox(height: 6),
-
-                    _buildBillRow(
-                      'SST (6%)',
-                      'RM ${sst.toStringAsFixed(2)}',
-                    ),
-
-                    const SizedBox(height: 6),
-
-                    _buildBillRow(
-                      'Service Charge (10%)',
-                      'RM ${serviceCharge.toStringAsFixed(2)}',
-                    ),
-
-                    const Divider(height: 24, color: Color(0xFFEEEEEE)),
-
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'Total',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black,
-                          ),
-                        ),
-                        Text(
-                          'RM ${total.toStringAsFixed(2)}',
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFFCF0000),
-                          ),
-                        ),
-                      ],
+                      'Total',
+                      'RM ${totalAmount.toStringAsFixed(2)}',
+                      bold: true,
+                      amountColor: const Color(0xFFCF0000),
                     ),
                   ],
                 ),
@@ -362,28 +346,25 @@ class _OrderDetailState extends State<OrderDetail> {
           ),
           const SizedBox(height: 24),
 
-          // Only shows when coming from payment page
           if (widget.fromPayment)
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: () {
-                  // TODO: navigate to My Orders page
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(builder: (_) => Order(email: _email)),
+                        (route) => route.isFirst,
+                  );
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFFCF0000),
                   minimumSize: const Size(double.infinity, 56),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(50),
-                  ),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
                 ),
                 child: const Text(
                   'View My Orders',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
                 ),
               ),
             ),

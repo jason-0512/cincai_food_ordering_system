@@ -59,7 +59,7 @@ class SupabaseService {
     try {
       final data = await _client
           .from('users')
-          .select()
+          .select('id, email, user_role')
           .eq('email', email.trim())
           .eq('password_hash', password)
           .maybeSingle();

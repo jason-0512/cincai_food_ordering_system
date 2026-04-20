@@ -1,11 +1,10 @@
-
-
 import 'package:flutter/material.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 import 'dart:ui';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'address_selection.dart';
 import 'order_detail.dart';
+import 'promotion_selection.dart';
 
 final supabase = Supabase.instance.client;
 
@@ -62,6 +61,8 @@ class _PaymentState extends State<Payment> {
   String _deliveryOption = 'standard';
 
   AddressItem? _selectedAddress;
+  PromotionItem? _selectedPromotion; // selected promotion code
+  int? _selectedTable; // selected table number for dine_in
 
   List<PaymentCartItem> _cartItems   = [];
   bool  _isLoading    = true;
@@ -75,6 +76,125 @@ class _PaymentState extends State<Payment> {
   void initState() {
     super.initState();
     _fetchData();
+    // Show table picker after page loads since default is dine_in
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Only show if table not yet selected
+      if (_selectedTable == null) {
+        _showTablePickerDialog();
+      }
+    });
+  }
+
+  // ── Show table picker dialog for dine_in ─────────────────────
+  Future<void> _showTablePickerDialog() async {
+    int? tempTable;
+
+    await showDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierColor: Colors.black.withOpacity(0.5),
+      builder: (context) {
+        return BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
+          child: StatefulBuilder(
+            builder: (context, setDialogState) {
+              return Dialog(
+                backgroundColor: const Color(0xFFF5F5F7),
+                insetPadding: const EdgeInsets.symmetric(horizontal: 100),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20)),
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text(
+                        'Select Your Table Number',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black),
+                      ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: 200,
+                        height: 250,
+                        child: ListView.builder(
+                          itemCount: 14,
+                          itemBuilder: (context, index) {
+                            final tableNumber = index + 1;
+                            final isSelected = tempTable == tableNumber;
+                            return GestureDetector(
+                              onTap: () => setDialogState(
+                                      () => tempTable = tableNumber),
+                              child: Container(
+                                height: 40,
+                                margin: const EdgeInsets.only(bottom: 6),
+                                decoration: BoxDecoration(
+                                  color: isSelected
+                                      ? const Color(0xFFCF0000)
+                                      : Colors.white,
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                    color: isSelected
+                                        ? const Color(0xFFCF0000)
+                                        : Colors.grey.withOpacity(0.3),
+                                    width: 1,
+                                  ),
+                                ),
+                                child: Center(
+                                  child: Text('$tableNumber',
+                                      style: TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.bold,
+                                          color: isSelected
+                                              ? Colors.white
+                                              : Colors.black)),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          // Cancel — user can close and switch to delivery
+                          TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: const Text('Cancel',
+                                style: TextStyle(color: Colors.grey)),
+                          ),
+                          ElevatedButton(
+                            onPressed: tempTable == null
+                                ? null
+                                : () {
+                              setState(() => _selectedTable = tempTable);
+                              Navigator.pop(context);
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFCF0000),
+                              disabledBackgroundColor:
+                              Colors.grey.withOpacity(0.3),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(50)),
+                            ),
+                            child: const Text('Confirm',
+                                style: TextStyle(color: Colors.white)),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        );
+      },
+    );
   }
 
   // ── Fetch cart items for THIS specific cart ───────────────────
@@ -123,13 +243,22 @@ class _PaymentState extends State<Payment> {
   }
 
   // ── Computed totals ───────────────────────────────────────────
-  double get _sst           => _grossTotal * 0.06;
-  double get _serviceCharge => _grossTotal * 0.10;
+  // Discount amount from selected promotion
+  double get _discountAmount =>
+      _selectedPromotion?.computeDiscount(_grossTotal) ?? 0.0;
+
+  // Subtotal after discount applied
+  double get _discountedSubtotal =>
+      (_grossTotal - _discountAmount).clamp(0.0, double.infinity);
+
+  // SST and service charge calculated on discounted subtotal
+  double get _sst           => _discountedSubtotal * 0.06;
+  double get _serviceCharge => _discountedSubtotal * 0.10;
   double get _deliveryFee   => _orderType == 'delivery'
       ? (_deliveryOption == 'priority' ? _priorityFee : _standardFee)
       : 0.0;
-  double get _totalPayable  =>
-      _grossTotal + _sst + _serviceCharge + _deliveryFee;
+  double get _totalPayable =>
+      _discountedSubtotal + _sst + _serviceCharge + _deliveryFee;
 
   // ── Address selection ─────────────────────────────────────────
   Future<void> _openAddressSelection() async {
@@ -145,8 +274,24 @@ class _PaymentState extends State<Payment> {
     if (result != null) setState(() => _selectedAddress = result);
   }
 
+  // ── Promotion selection ──────────────────────────────────────
+  Future<void> _openPromotionSelection() async {
+    final result = await Navigator.push<PromotionItem?>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PromotionSelectionScreen(
+          userId:          widget.userId,
+          grossTotal:      _grossTotal,
+          currentSelected: _selectedPromotion,
+        ),
+      ),
+    );
+    // Save selected promotion to state
+    setState(() => _selectedPromotion = result);
+  }
+
   // ── Helpers ───────────────────────────────────────────────────
-  Widget _summaryRow(String label, String amount, {bool bold = false}) {
+  Widget _summaryRow(String label, String amount, {bool bold = false, Color? amountColor}) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -159,7 +304,7 @@ class _PaymentState extends State<Payment> {
             style: TextStyle(
                 fontSize: 14,
                 fontWeight: bold ? FontWeight.bold : FontWeight.normal,
-                color: Colors.black)),
+                color: amountColor ?? Colors.black)),
       ],
     );
   }
@@ -320,6 +465,22 @@ class _PaymentState extends State<Payment> {
                           crossAxisAlignment:
                           CrossAxisAlignment.start,
                           children: [
+                            // Show table number for dine_in
+                            if (_orderType == 'dine_in') ...[
+                              Text(
+                                _selectedTable != null
+                                    ? 'Table No: $_selectedTable'
+                                    : 'No table selected — tap to select',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: _selectedTable != null
+                                      ? Colors.black
+                                      : Colors.red,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                            ],
                             ..._cartItems.map((item) => Padding(
                               padding: const EdgeInsets.only(
                                   bottom: 8.0),
@@ -335,8 +496,20 @@ class _PaymentState extends State<Payment> {
                             const SizedBox(height: 8),
                             _summaryRow('Gross Total',
                                 'RM ${_grossTotal.toStringAsFixed(2)}'),
-                            const SizedBox(height: 8),
-                            _summaryRow('Discount', 'RM 0.00'),
+                            // Show discount row if promotion selected
+                            if (_selectedPromotion != null) ...[
+                              const SizedBox(height: 8),
+                              _summaryRow(
+                                'Discount (${_selectedPromotion!.promotionCode})',
+                                '- RM ${_discountAmount.toStringAsFixed(2)}',
+                                amountColor: const Color(0xFFCF0000),
+                              ),
+                              const SizedBox(height: 8),
+                              _summaryRow(
+                                'Subtotal after Discount',
+                                'RM ${_discountedSubtotal.toStringAsFixed(2)}',
+                              ),
+                            ],
                             const SizedBox(height: 8),
                             _summaryRow('SST (6%)',
                                 'RM ${_sst.toStringAsFixed(2)}'),
@@ -363,6 +536,54 @@ class _PaymentState extends State<Payment> {
                               bold: true,
                             ),
                           ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Promotion Code section
+                    const Text('Promotion Code',
+                        style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black)),
+                    const SizedBox(height: 16),
+                    _glassCard(
+                      child: Material(
+                        color: Colors.transparent,
+                        child: ListTile(
+                          onTap: _openPromotionSelection,
+                          splashColor: Colors.grey.withOpacity(0.2),
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 4),
+                          leading: const Icon(
+                            Icons.local_offer_outlined,
+                            color: Color(0xFFCF0000),
+                          ),
+                          title: Text(
+                            _selectedPromotion != null
+                                ? _selectedPromotion!.promotionName
+                                : 'Select a promotion',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: _selectedPromotion != null
+                                  ? Colors.black
+                                  : Colors.grey,
+                            ),
+                          ),
+                          subtitle: _selectedPromotion != null
+                              ? Text(
+                            '${_selectedPromotion!.promotionCode}  •  '
+                                'Save RM ${_discountAmount.toStringAsFixed(2)}',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFFCF0000),
+                            ),
+                          )
+                              : null,
+                          trailing: const Icon(Icons.chevron_right,
+                              color: Colors.grey),
                         ),
                       ),
                     ),
@@ -477,6 +698,15 @@ class _PaymentState extends State<Payment> {
                       onPressed: _isProcessing
                           ? null
                           : () async {
+                        // Validate table selected for dine_in
+                        if (_orderType == 'dine_in' &&
+                            _selectedTable == null) {
+                          ScaffoldMessenger.of(context)
+                              .showSnackBar(const SnackBar(
+                            content: Text('Please select a table number.'),
+                          ));
+                          return;
+                        }
                         if (_orderType == 'delivery' &&
                             _selectedAddress == null) {
                           ScaffoldMessenger.of(context)
@@ -530,17 +760,19 @@ class _PaymentState extends State<Payment> {
     final bool isSelected = _orderType == value;
     return Expanded(
       child: GestureDetector(
-        onTap: () => setState(() {
-          _orderType = value;
-          if (value != 'delivery' &&
-              _paymentMethod == 'Pay at Counter') {
-            // keep Pay at Counter only for dine_in
+        onTap: () {
+          setState(() {
+            _orderType = value;
+            if (value == 'delivery' &&
+                _paymentMethod == 'Pay at Counter') {
+              _paymentMethod = 'Credit / Debit Card';
+            }
+          });
+          // Show table picker only if table not yet selected
+          if (value == 'dine_in' && _selectedTable == null) {
+            _showTablePickerDialog();
           }
-          if (value == 'delivery' &&
-              _paymentMethod == 'Pay at Counter') {
-            _paymentMethod = 'Credit / Debit Card';
-          }
-        }),
+        },
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 12),
           decoration: BoxDecoration(
@@ -575,27 +807,86 @@ class _PaymentState extends State<Payment> {
     required String paymentMethod,
     String? stripeIntentId,
   }) async {
+    // Stop if cart is empty
     if (_cartItems.isEmpty) throw Exception('Cart is empty');
 
-    // 1. Insert order row
-    final orderRes = await supabase.from('orders').insert({
-      'user_id':         widget.userId,          // ← passed userId
-      'cart_id':         widget.cartId,          // ← passed cartId
-      'table_number':    _orderType == 'dine_in' ? 1 : null,
-      'delivery_option': _orderType == 'delivery' ? _deliveryOption : null,
-      'address_id':      _orderType == 'delivery'
-          ? _selectedAddress?.addressId
-          : null,
-      'gross_total':     double.parse(_grossTotal.toStringAsFixed(2)),
-      'total_amount':    double.parse(_totalPayable.toStringAsFixed(2)),
-      'status':          paid ? 'success' : 'pending',
-      'order_type':      _orderType,
-      'delivery_fee':    _deliveryFee,
-    }).select().single();
+    // Step 1 — Check if existing active dine_in order at same table for same user
+    // null means no existing order found
+    int? existingOrderId;
 
-    final orderId = orderRes['order_id'] as int;
+    if (_orderType == 'dine_in') {
+      // Search for existing order with same user + same table + pending or preparing
+      final existingOrder = await supabase
+          .from('orders')
+          .select()
+          .eq('user_id', widget.userId)                  // same user
+          .eq('table_number', _selectedTable ?? 1)        // same table number
+          .eq('order_type', 'dine_in')                   // dine in only
+          .inFilter('status', ['pending', 'preparing'])  // active orders only
+          .order('created_at', ascending: false)         // get newest first
+          .limit(1)                                      // only 1 row
+          .maybeSingle();                                // return 1 or null
 
-    // 2. Insert payment row
+      // If existing order found, save its order_id
+      if (existingOrder != null) {
+        existingOrderId = existingOrder['order_id'] as int;
+      }
+    }
+
+    // Step 2 — Decide whether to update existing order or create new one
+    final int orderId;
+
+    if (existingOrderId != null) {
+      // Use existing order id — add new items to it
+      orderId = existingOrderId;
+
+      // Fetch current totals from existing order
+      final existingOrder = await supabase
+          .from('orders')
+          .select('gross_total, total_amount')
+          .eq('order_id', orderId)
+          .single();
+
+      // Add new items total on top of existing order total
+      final newGrossTotal =
+          (existingOrder['gross_total'] as num).toDouble()
+              + double.parse(_grossTotal.toStringAsFixed(2));
+      final newTotalAmount =
+          (existingOrder['total_amount'] as num).toDouble()
+              + double.parse(_totalPayable.toStringAsFixed(2));
+
+      // Update the existing order totals
+      await supabase.from('orders').update({
+        'gross_total':  double.parse(newGrossTotal.toStringAsFixed(2)),
+        'total_amount': double.parse(newTotalAmount.toStringAsFixed(2)),
+      }).eq('order_id', orderId);
+
+    } else {
+      // No existing order — create a brand new one
+      final orderRes = await supabase.from('orders').insert({
+        'user_id':         widget.userId,        // passed userId
+        'cart_id':         widget.cartId,        // passed cartId
+        'table_number':    _orderType == 'dine_in' ? _selectedTable : null,
+        'delivery_option': _orderType == 'delivery' ? _deliveryOption : null,
+        'address_id':      _orderType == 'delivery'
+            ? _selectedAddress?.addressId
+            : null,
+        'gross_total':     double.parse(_grossTotal.toStringAsFixed(2)),
+        'total_amount':    double.parse(_totalPayable.toStringAsFixed(2)),
+        'status':          'pending',
+        'order_type':      _orderType,
+        'delivery_fee':    _deliveryFee,
+        // Save promotion id if promotion was applied
+        if (_selectedPromotion != null)
+          'promotion_id': _selectedPromotion!.promotionId,
+        // Save discount amount
+        'discounted_amount': double.parse(_discountAmount.toStringAsFixed(2)),
+      }).select().single();
+
+      orderId = orderRes['order_id'] as int;
+    }
+
+    // Step 3 — Insert payment row
     await supabase.from('payment').insert({
       'order_id':         orderId,
       'method':           paymentMethod,
@@ -605,24 +896,27 @@ class _PaymentState extends State<Payment> {
       'paid_at':          paid ? DateTime.now().toIso8601String() : null,
     });
 
-    // 3. Insert order_item rows
+    // Step 4 — Insert order_item rows
+    // Mark is_addon as true if adding to existing order, false if new order
     for (final item in _cartItems) {
       await supabase.from('order_item').insert({
         'order_id':   orderId,
         'product_id': item.productId,
         'qty':        item.quantity,
         'subtotal':   double.parse(item.subtotal.toStringAsFixed(2)),
+        'is_addon':   existingOrderId != null, // true if added to existing order
       });
     }
 
-    // 4. Mark cart as checked_out
+    // Step 5 — Mark cart as checked_out
     await supabase
         .from('cart')
         .update({'cart_status': 'checked_out'})
-        .eq('cart_id', widget.cartId);             // ← passed cartId
+        .eq('cart_id', widget.cartId);
 
-    // 5. Navigate to OrderDetail
+    // Step 6 — Navigate to OrderDetail page
     if (mounted) {
+      debugPrint('Navigating to OrderDetail: orderId=$orderId');
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
@@ -632,6 +926,8 @@ class _PaymentState extends State<Payment> {
           ),
         ),
       );
+    } else {
+      debugPrint('Widget unmounted, cannot navigate');
     }
   }
 
@@ -684,11 +980,20 @@ class _PaymentState extends State<Payment> {
         stripeIntentId: intentId,
       );
     } on StripeException catch (e) {
-      debugPrint('Stripe exception: $e');
+      debugPrint('Stripe cancelled or failed: $e');
       if (mounted) setState(() => _isProcessing = false);
     } catch (e) {
-      debugPrint('Stripe error: $e');
-      if (mounted) setState(() => _isProcessing = false);
+      debugPrint('Stripe payment error: $e');
+      if (mounted) {
+        setState(() => _isProcessing = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Payment failed: $e'),
+            backgroundColor: const Color(0xFFCF0000),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     }
   }
 }

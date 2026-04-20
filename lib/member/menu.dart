@@ -5,6 +5,7 @@ import 'dart:ui';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'cart_class.dart';
 import 'cart.dart';
+import 'login.dart'; // adjust path if login.dart is in a subfolder
 
 class MenuItem {
   final int productId;
@@ -41,7 +42,7 @@ class _MenuState extends State<Menu> {
   bool _isScrollingFromTap = false;
   bool _isLoading = true;
 
-  static const double _itemHeight = 135.0;
+  static const double _itemHeight  = 135.0;
   static const double _headerHeight = 63.0;
 
   List<String> categories = [
@@ -60,20 +61,8 @@ class _MenuState extends State<Menu> {
     'Beverage': [],
   };
 
-  // Guest cart — stores items locally when userId == 0
-  // key: productId, value: {name, price, quantity}
-  final Map<int, Map<String, dynamic>> _guestCart = {};
-
-  // True if user is a guest (not logged in)
+  // Guest = userId == 0 (not logged in)
   bool get _isGuest => widget.userId == 0;
-
-  // Total guest cart quantity
-  int get _guestTotalQty =>
-      _guestCart.values.fold(0, (sum, item) => sum + (item['quantity'] as int));
-
-  // Total guest cart price
-  double get _guestTotalPrice => _guestCart.values
-      .fold(0.0, (sum, item) => sum + (item['price'] as double) * (item['quantity'] as int));
 
   Future<void> _fetchMenuItems() async {
     try {
@@ -94,24 +83,22 @@ class _MenuState extends State<Menu> {
       for (final item in response) {
         final category = item['category'] as String;
         if (fetchedItems.containsKey(category)) {
-          fetchedItems[category]!.add(
-            MenuItem(
-              productId: item['id'] as int,
-              name: item['name'] ?? '',
-              price: (item['price'] as num).toDouble(),
-              description: item['description'] ?? '',
-              imageUrl: item['image_url'] ?? '',
-            ),
-          );
+          fetchedItems[category]!.add(MenuItem(
+            productId:   item['id']          as int,
+            name:        item['name']        ?? '',
+            price:       (item['price']      as num).toDouble(),
+            description: item['description'] ?? '',
+            imageUrl:    item['image_url']   ?? '',
+          ));
         }
       }
 
       setState(() {
-        menuItems = fetchedItems;
+        menuItems  = fetchedItems;
         _isLoading = false;
       });
     } catch (e) {
-      print('Error fetching menu items: $e');
+      debugPrint('Error fetching menu items: $e');
       setState(() => _isLoading = false);
     }
   }
@@ -128,19 +115,15 @@ class _MenuState extends State<Menu> {
         width: width,
         height: height,
         fit: BoxFit.cover,
-        loadingBuilder: (context, child, loadingProgress) {
-          return SizedBox(
-            width: width,
-            height: height,
-            child: loadingProgress == null
-                ? child
-                : Container(color: const Color(0xFFEEEEEE)),
-          );
-        },
-        errorBuilder: (context, error, stackTrace) {
-          return Container(
-              width: width, height: height, color: const Color(0xFFEEEEEE));
-        },
+        loadingBuilder: (context, child, progress) => SizedBox(
+          width: width,
+          height: height,
+          child: progress == null
+              ? child
+              : Container(color: const Color(0xFFEEEEEE)),
+        ),
+        errorBuilder: (_, __, ___) => Container(
+            width: width, height: height, color: const Color(0xFFEEEEEE)),
       );
     } else {
       return Image.asset(
@@ -148,10 +131,8 @@ class _MenuState extends State<Menu> {
         width: width,
         height: height,
         fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) {
-          return Container(
-              width: width, height: height, color: const Color(0xFFEEEEEE));
-        },
+        errorBuilder: (_, __, ___) => Container(
+            width: width, height: height, color: const Color(0xFFEEEEEE)),
       );
     }
   }
@@ -159,11 +140,11 @@ class _MenuState extends State<Menu> {
   final ScrollController _scrollController = ScrollController();
 
   final Map<String, GlobalKey> _categoryKeys = {
-    'Set': GlobalKey(),
-    'Rice': GlobalKey(),
-    'Noodle': GlobalKey(),
+    'Set':          GlobalKey(),
+    'Rice':         GlobalKey(),
+    'Noodle':       GlobalKey(),
     'Western Food': GlobalKey(),
-    'Beverage': GlobalKey(),
+    'Beverage':     GlobalKey(),
   };
 
   @override
@@ -177,7 +158,7 @@ class _MenuState extends State<Menu> {
       });
     });
 
-    // Only init Supabase cart for logged in users
+    // Init Supabase cart for logged-in users only
     if (!_isGuest) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         Provider.of<MenuCartProvider>(context, listen: false)
@@ -207,10 +188,10 @@ class _MenuState extends State<Menu> {
     for (final category in categories) {
       final key = _categoryKeys[category];
       if (key?.currentContext != null) {
-        final RenderBox renderBox =
+        final box =
         key!.currentContext!.findRenderObject() as RenderBox;
-        final position = renderBox.localToGlobal(Offset.zero);
-        if (position.dy <= 160 && position.dy > 0) {
+        final pos = box.localToGlobal(Offset.zero);
+        if (pos.dy <= 160 && pos.dy > 0) {
           if (selectedCategory != category) {
             setState(() => selectedCategory = category);
           }
@@ -223,10 +204,10 @@ class _MenuState extends State<Menu> {
     if (!_scrollController.hasClients) return;
     _isScrollingFromTap = true;
     setState(() => selectedCategory = category);
-    final targetOffset = _getOffsetForCategory(category)
+    final target = _getOffsetForCategory(category)
         .clamp(0.0, _scrollController.position.maxScrollExtent);
     _scrollController
-        .animateTo(targetOffset,
+        .animateTo(target,
         duration: const Duration(milliseconds: 400),
         curve: Curves.easeOutCubic)
         .then((_) {
@@ -279,7 +260,7 @@ class _MenuState extends State<Menu> {
                     _scrollToCategory(category);
                   },
                 );
-              }).toList(),
+              }),
             ],
           ),
         );
@@ -287,6 +268,84 @@ class _MenuState extends State<Menu> {
     );
   }
 
+  // ── Show login-required dialog ────────────────────────────────
+  // Shown when a guest taps "Add to cart"
+  void _showLoginRequired() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      barrierColor: Colors.black.withOpacity(0.5),
+      builder: (ctx) => BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
+        child: Dialog(
+          backgroundColor: const Color(0xFFF5F5F7),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  "Login Required",
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  "Please log in to add items to your cart and place an order.",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 14, color: Colors.black),
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(50)),
+                          side: BorderSide(color: Colors.grey.shade300),
+                        ),
+                        child: const Text("Cancel",
+                            style: TextStyle(color: Colors.black)),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.pop(ctx);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const Login()),
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFCF0000),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(50)),
+                          elevation: 0,
+                        ),
+                        child: const Text("Log In",
+                            style: TextStyle(fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── Item detail bottom sheet ──────────────────────────────────
   void _showItemDetail(MenuItem item) {
     int quantity = 1;
 
@@ -303,6 +362,7 @@ class _MenuState extends State<Menu> {
             return Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                // Product image
                 Stack(
                   children: [
                     ClipRRect(
@@ -328,6 +388,7 @@ class _MenuState extends State<Menu> {
                     ),
                   ],
                 ),
+
                 Padding(
                   padding: const EdgeInsets.all(20.0),
                   child: Column(
@@ -335,18 +396,23 @@ class _MenuState extends State<Menu> {
                     children: [
                       Text(item.name,
                           style: const TextStyle(
-                              fontSize: 22, fontWeight: FontWeight.bold)),
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold)),
                       const SizedBox(height: 6),
-                      Text('RM ${item.price.toStringAsFixed(2)}',
-                          style: const TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.w500)),
+                      Text(
+                        'RM ${item.price.toStringAsFixed(2)}',
+                        style: const TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.w500),
+                      ),
                       const SizedBox(height: 10),
                       Text(item.description,
                           style: const TextStyle(
                               fontSize: 14, color: Colors.grey)),
                       const SizedBox(height: 24),
+
                       Row(
                         children: [
+                          // Quantity picker (always shown)
                           ClipRRect(
                             borderRadius: BorderRadius.circular(50),
                             child: BackdropFilter(
@@ -355,9 +421,11 @@ class _MenuState extends State<Menu> {
                               child: Container(
                                 decoration: BoxDecoration(
                                   color: Colors.white.withOpacity(0.6),
-                                  borderRadius: BorderRadius.circular(50),
+                                  borderRadius:
+                                  BorderRadius.circular(50),
                                   border: Border.all(
-                                      color: Colors.white.withOpacity(0.8),
+                                      color:
+                                      Colors.white.withOpacity(0.8),
                                       width: 1),
                                 ),
                                 child: Row(
@@ -376,7 +444,8 @@ class _MenuState extends State<Menu> {
                                           textAlign: TextAlign.center,
                                           style: const TextStyle(
                                               fontSize: 16,
-                                              fontWeight: FontWeight.bold)),
+                                              fontWeight:
+                                              FontWeight.bold)),
                                     ),
                                     IconButton(
                                       onPressed: () =>
@@ -389,54 +458,60 @@ class _MenuState extends State<Menu> {
                             ),
                           ),
                           const SizedBox(width: 16),
+
+                          // Add to cart button
                           Expanded(
                             child: ElevatedButton(
                               onPressed: () async {
-                                // Close modal first
-                                Navigator.pop(context);
-
+                                // ── GUEST: block and show login dialog ──
                                 if (_isGuest) {
-                                  // Guest — store items locally in _guestCart
-                                  setState(() {
-                                    if (_guestCart.containsKey(item.productId)) {
-                                      _guestCart[item.productId]!['quantity'] =
-                                          (_guestCart[item.productId]!['quantity'] as int) + quantity;
-                                    } else {
-                                      _guestCart[item.productId] = {
-                                        'name': item.name,
-                                        'price': item.price,
-                                        'quantity': quantity,
-                                      };
-                                    }
-                                  });
-                                } else {
-                                  // Logged in — add to Supabase cart via provider
-                                  final provider =
-                                  Provider.of<MenuCartProvider>(
-                                    this.context,
-                                    listen: false,
-                                  );
-                                  await provider.addToCart(
-                                    userId: widget.userId,
-                                    productId: item.productId,
-                                    quantity: quantity,
-                                    addOnSelection: AddOnSelection(),
-                                  );
+                                  Navigator.pop(context); // close sheet first
+                                  _showLoginRequired();
+                                  return;
+                                }
+
+                                // ── LOGGED IN: add to Supabase cart ──
+                                Navigator.pop(context);
+                                final provider =
+                                Provider.of<MenuCartProvider>(
+                                  this.context,
+                                  listen: false,
+                                );
+                                final error = await provider.addToCart(
+                                  userId:         widget.userId,
+                                  productId:      item.productId,
+                                  quantity:       quantity,
+                                  addOnSelection: AddOnSelection(),
+                                );
+                                if (!mounted) return;
+                                if (error != null) {
+                                  ScaffoldMessenger.of(this.context)
+                                      .showSnackBar(SnackBar(
+                                    content: Text(error),
+                                    backgroundColor: Colors.red,
+                                    behavior: SnackBarBehavior.floating,
+                                  ));
                                 }
                               },
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFFCF0000),
+                                backgroundColor:
+                                const Color(0xFFCF0000),
                                 padding: const EdgeInsets.symmetric(
                                     vertical: 16),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(50),
                                 ),
                               ),
-                              child: const Text('Add to cart',
-                                  style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white)),
+                              child: Text(
+                                // Label changes for guest to signal login is needed
+                                _isGuest
+                                    ? 'Log in to Order'
+                                    : 'Add to cart',
+                                style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white),
+                              ),
                             ),
                           ),
                         ],
@@ -467,19 +542,19 @@ class _MenuState extends State<Menu> {
         body: SafeArea(
           child: Stack(
             children: [
-
-              // ===== MAIN CONTENT =====
+              // ── MAIN CONTENT ──────────────────────────────────
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Back Button
+                  // Back button
                   Padding(
                     padding: const EdgeInsets.all(16.0),
                     child: GestureDetector(
                       onTap: () => Navigator.pop(context),
                       child: ClipOval(
                         child: BackdropFilter(
-                          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                          filter:
+                          ImageFilter.blur(sigmaX: 20, sigmaY: 20),
                           child: Container(
                             width: 54,
                             height: 54,
@@ -498,7 +573,7 @@ class _MenuState extends State<Menu> {
                     ),
                   ),
 
-                  // Dropdown
+                  // Category dropdown
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16.0),
                     child: GestureDetector(
@@ -506,7 +581,8 @@ class _MenuState extends State<Menu> {
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(50),
                         child: BackdropFilter(
-                          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                          filter:
+                          ImageFilter.blur(sigmaX: 20, sigmaY: 20),
                           child: Container(
                             width: 220,
                             padding: const EdgeInsets.symmetric(
@@ -519,7 +595,8 @@ class _MenuState extends State<Menu> {
                                   width: 1),
                             ),
                             child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              mainAxisAlignment:
+                              MainAxisAlignment.spaceBetween,
                               children: [
                                 Text(selectedCategory,
                                     style: const TextStyle(
@@ -534,7 +611,7 @@ class _MenuState extends State<Menu> {
                     ),
                   ),
 
-                  // Loading or List
+                  // Loading / item list
                   if (_isLoading)
                     const Expanded(
                       child: Center(
@@ -556,13 +633,17 @@ class _MenuState extends State<Menu> {
                               Padding(
                                 key: _categoryKeys[category],
                                 padding: const EdgeInsets.only(
-                                    left: 16.0, top: 24.0, bottom: 8.0),
+                                    left: 16.0,
+                                    top: 24.0,
+                                    bottom: 8.0),
                                 child: Text(category,
                                     style: const TextStyle(
                                         fontSize: 24,
                                         fontWeight: FontWeight.bold,
                                         color: Color(0xFFCF0000))),
                               ),
+
+                              // Skeleton placeholders while empty
                               if (items.isEmpty)
                                 Padding(
                                   padding: const EdgeInsets.symmetric(
@@ -576,60 +657,35 @@ class _MenuState extends State<Menu> {
                                           crossAxisAlignment:
                                           CrossAxisAlignment.start,
                                           children: [
-                                            Container(
-                                                width: 120,
-                                                height: 16,
-                                                decoration: const BoxDecoration(
-                                                    color: Color(0xFFEEEEEE),
-                                                    borderRadius: BorderRadius.all(
-                                                        Radius.circular(4)))),
+                                            _skeletonBox(120, 16),
                                             const SizedBox(height: 8),
-                                            Container(
-                                                width: 60,
-                                                height: 14,
-                                                decoration: const BoxDecoration(
-                                                    color: Color(0xFFEEEEEE),
-                                                    borderRadius: BorderRadius.all(
-                                                        Radius.circular(4)))),
+                                            _skeletonBox(60, 14),
                                             const SizedBox(height: 8),
-                                            Container(
-                                                width: double.infinity,
-                                                height: 12,
-                                                decoration: const BoxDecoration(
-                                                    color: Color(0xFFEEEEEE),
-                                                    borderRadius: BorderRadius.all(
-                                                        Radius.circular(4)))),
+                                            _skeletonBox(double.infinity, 12),
                                             const SizedBox(height: 4),
-                                            Container(
-                                                width: 150,
-                                                height: 12,
-                                                decoration: const BoxDecoration(
-                                                    color: Color(0xFFEEEEEE),
-                                                    borderRadius: BorderRadius.all(
-                                                        Radius.circular(4)))),
+                                            _skeletonBox(150, 12),
                                           ],
                                         ),
                                       ),
                                       const SizedBox(width: 12),
-                                      Container(
-                                          width: 110,
-                                          height: 110,
-                                          decoration: const BoxDecoration(
-                                              color: Color(0xFFEEEEEE),
-                                              borderRadius: BorderRadius.all(
-                                                  Radius.circular(12)))),
+                                      _skeletonBox(110, 110,
+                                          radius: 12),
                                     ],
                                   ),
                                 ),
+
+                              // Menu items
                               ...items.map((item) {
                                 return Column(
                                   children: [
                                     SizedBox(
                                       height: _itemHeight,
                                       child: GestureDetector(
-                                        onTap: () => _showItemDetail(item),
+                                        onTap: () =>
+                                            _showItemDetail(item),
                                         child: Padding(
-                                          padding: const EdgeInsets.symmetric(
+                                          padding:
+                                          const EdgeInsets.symmetric(
                                               horizontal: 16.0,
                                               vertical: 12.0),
                                           child: Row(
@@ -639,40 +695,51 @@ class _MenuState extends State<Menu> {
                                               Expanded(
                                                 child: Column(
                                                   crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
+                                                  CrossAxisAlignment
+                                                      .start,
                                                   children: [
                                                     Text(item.name,
                                                         style: const TextStyle(
                                                             fontSize: 16,
                                                             fontWeight:
-                                                            FontWeight.bold),
+                                                            FontWeight
+                                                                .bold),
                                                         maxLines: 1,
                                                         overflow: TextOverflow
                                                             .ellipsis),
-                                                    const SizedBox(height: 4),
+                                                    const SizedBox(
+                                                        height: 4),
                                                     Text(
-                                                        'RM ${item.price.toStringAsFixed(2)}',
-                                                        style: const TextStyle(
-                                                            fontSize: 14,
-                                                            fontWeight:
-                                                            FontWeight.w500)),
-                                                    const SizedBox(height: 6),
-                                                    Text(item.description,
-                                                        style: const TextStyle(
-                                                            fontSize: 13,
-                                                            color: Colors.grey),
-                                                        maxLines: 2,
-                                                        overflow: TextOverflow
-                                                            .ellipsis),
+                                                      'RM ${item.price.toStringAsFixed(2)}',
+                                                      style: const TextStyle(
+                                                          fontSize: 14,
+                                                          fontWeight:
+                                                          FontWeight
+                                                              .w500),
+                                                    ),
+                                                    const SizedBox(
+                                                        height: 6),
+                                                    Text(
+                                                      item.description,
+                                                      style: const TextStyle(
+                                                          fontSize: 13,
+                                                          color:
+                                                          Colors.grey),
+                                                      maxLines: 2,
+                                                      overflow:
+                                                      TextOverflow
+                                                          .ellipsis,
+                                                    ),
                                                   ],
                                                 ),
                                               ),
                                               const SizedBox(width: 12),
                                               ClipRRect(
                                                 borderRadius:
-                                                BorderRadius.circular(12),
-                                                child:
-                                                _buildImage(item.imageUrl),
+                                                BorderRadius.circular(
+                                                    12),
+                                                child: _buildImage(
+                                                    item.imageUrl),
                                               ),
                                             ],
                                           ),
@@ -685,7 +752,7 @@ class _MenuState extends State<Menu> {
                                         color: Color(0xFFEEEEEE)),
                                   ],
                                 );
-                              }).toList(),
+                              }),
                             ],
                           );
                         }).toList(),
@@ -694,102 +761,27 @@ class _MenuState extends State<Menu> {
                 ],
               ),
 
-              // ===== FLOATING CART BAR =====
-              // For guests — uses local _guestCart
-              // For logged in — uses MenuCartProvider
-              if (_isGuest)
-              // Guest floating bar — reads from _guestCart
-                _guestTotalQty == 0
-                    ? const SizedBox.shrink()
-                    : Positioned(
-                  left: 16,
-                  right: 16,
-                  bottom: 16,
-                  child: GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => Cart(
-                            userId: widget.userId,
-                            guestCart: Map.from(_guestCart),
-                          ),
-                        ),
-                      );
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 14),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFCF0000),
-                        borderRadius: BorderRadius.circular(50),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.2),
-                            blurRadius: 12,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Container(
-                            width: 28,
-                            height: 28,
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.3),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Center(
-                              child: Text('$_guestTotalQty',
-                                  style: const TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white)),
-                            ),
-                          ),
-                          const Text('View your cart',
-                              style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white)),
-                          Text(
-                              'RM ${_guestTotalPrice.toStringAsFixed(2)}',
-                              style: const TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white)),
-                        ],
-                      ),
-                    ),
-                  ),
-                )
-              else
-              // Logged in floating bar — reads from MenuCartProvider
+              // ── FLOATING CART BAR (logged-in only) ───────────
+              // Guests see nothing here — no cart bar at all
+              if (!_isGuest)
                 Consumer<MenuCartProvider>(
                   builder: (context, provider, _) {
-                    final items = provider.cartItems;
-                    final totalQty =
-                    items.fold(0, (sum, i) => sum + i.quantity);
-                    final totalPrice =
-                    items.fold(0.0, (sum, i) => sum + i.subtotal);
+                    final items      = provider.cartItems;
+                    final totalQty   = items.fold(0,   (s, i) => s + i.quantity);
+                    final totalPrice = items.fold(0.0, (s, i) => s + i.subtotal);
 
                     if (items.isEmpty) return const SizedBox.shrink();
 
                     return Positioned(
-                      left: 16,
-                      right: 16,
-                      bottom: 16,
+                      left: 16, right: 16, bottom: 16,
                       child: GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => Cart(userId: widget.userId),
-                            ),
-                          );
-                        },
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                Cart(userId: widget.userId),
+                          ),
+                        ),
                         child: Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 16, vertical: 14),
@@ -805,11 +797,12 @@ class _MenuState extends State<Menu> {
                             ],
                           ),
                           child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            mainAxisAlignment:
+                            MainAxisAlignment.spaceBetween,
                             children: [
+                              // Item count badge
                               Container(
-                                width: 28,
-                                height: 28,
+                                width: 28, height: 28,
                                 decoration: BoxDecoration(
                                   color: Colors.white.withOpacity(0.3),
                                   borderRadius: BorderRadius.circular(8),
@@ -827,11 +820,13 @@ class _MenuState extends State<Menu> {
                                       fontSize: 15,
                                       fontWeight: FontWeight.bold,
                                       color: Colors.white)),
-                              Text('RM ${totalPrice.toStringAsFixed(2)}',
-                                  style: const TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white)),
+                              Text(
+                                'RM ${totalPrice.toStringAsFixed(2)}',
+                                style: const TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white),
+                              ),
                             ],
                           ),
                         ),
@@ -845,4 +840,15 @@ class _MenuState extends State<Menu> {
       ),
     );
   }
+
+  Widget _skeletonBox(double width, double height,
+      {double radius = 4}) =>
+      Container(
+        width: width,
+        height: height,
+        decoration: BoxDecoration(
+          color: const Color(0xFFEEEEEE),
+          borderRadius: BorderRadius.all(Radius.circular(radius)),
+        ),
+      );
 }

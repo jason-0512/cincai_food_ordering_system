@@ -1,3 +1,7 @@
+// cart_class.dart
+// Models + MenuCartProvider only. No UI. No guest cart logic.
+// Guests (userId <= 0) are blocked at the Cart page level.
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -14,7 +18,8 @@ enum DeliveryOption { dineIn, takeaway, delivery }
 enum CartStatus { active, checkedOut, cancelled }
 
 // ─────────────────────────────────────────────
-// Product
+// Product  —  DB: id, name, price, description,
+//                 category, image_url, is_available, sort_order
 // ─────────────────────────────────────────────
 class Product {
   final int productId;
@@ -35,6 +40,7 @@ class Product {
     this.isAvailable = true,
   });
 
+  // Full local asset path e.g. assets/images/R1.png
   String? get localImagePath =>
       (imageUrl != null && imageUrl!.isNotEmpty)
           ? 'assets/images/$imageUrl'
@@ -72,14 +78,17 @@ class AddOnSelection {
   String get summary {
     final parts = <String>[];
     radioSelections.forEach((gid, oid) => parts.add('r$gid:$oid'));
-    checkboxSelections.forEach((gid, ids) => parts.add('c$gid:${ids.join(",")}'));
-    textSelections.forEach((gid, t) { if (t.isNotEmpty) parts.add('t$gid:$t'); });
+    checkboxSelections.forEach(
+            (gid, ids) => parts.add('c$gid:${ids.join(",")}'));
+    textSelections.forEach(
+            (gid, t) { if (t.isNotEmpty) parts.add('t$gid:$t'); });
     return parts.join(' | ');
   }
 }
 
 // ─────────────────────────────────────────────
-// CartItemModel
+// CartItemModel  —  DB: cart_item_id(auto), created_at(auto),
+//                       cart_id, product_id, quantity, subtotal
 // ─────────────────────────────────────────────
 class CartItemModel {
   final int? cartItemId;
@@ -102,7 +111,8 @@ class CartItemModel {
     AddOnSelection? addOnSelection,
   }) : addOnSelection = addOnSelection ?? AddOnSelection();
 
-  factory CartItemModel.fromJson(Map<String, dynamic> json, Product product) {
+  factory CartItemModel.fromJson(
+      Map<String, dynamic> json, Product product) {
     return CartItemModel(
       cartItemId: json['cart_item_id'] as int?,
       cartId:     json['cart_id']      as int,
@@ -110,14 +120,15 @@ class CartItemModel {
       quantity:   json['quantity']     as int,
       subtotal:   (json['subtotal']    as num).toDouble(),
       createdAt:  json['created_at'] != null
-          ? DateTime.parse(json['created_at'] as String) : null,
+          ? DateTime.parse(json['created_at'] as String)
+          : null,
       product: product,
     );
   }
 }
 
 // ─────────────────────────────────────────────
-// CartModel
+// CartModel  —  DB: cart_id(auto), user_id, cart_status
 // ─────────────────────────────────────────────
 class CartModel {
   final int cartId;
@@ -132,35 +143,8 @@ class CartModel {
     this.items = const [],
   });
 
-  double get grandTotal => items.fold(0.0, (sum, i) => sum + i.subtotal);
-}
-
-// ─────────────────────────────────────────────
-// GuestCartItem
-// ─────────────────────────────────────────────
-class GuestCartItem {
-  final int productId;
-  final String name;
-  final double price;
-  final String? imageUrl;
-  final String? category;
-  int quantity;
-
-  GuestCartItem({
-    required this.productId,
-    required this.name,
-    required this.price,
-    this.imageUrl,
-    this.category,
-    required this.quantity,
-  });
-
-  double get subtotal => price * quantity;
-
-  String? get localImagePath =>
-      (imageUrl != null && imageUrl!.isNotEmpty)
-          ? 'assets/images/$imageUrl'
-          : null;
+  double get grandTotal =>
+      items.fold(0.0, (sum, i) => sum + i.subtotal);
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -174,19 +158,19 @@ class MenuCartProvider extends ChangeNotifier {
   bool             _isLoading  = false;
   String?          _error;
 
-  List<Product>       get products   => _products;
-  CartModel?          get activeCart => _activeCart;
-  bool                get isLoading  => _isLoading;
-  String?             get error      => _error;
-  // cartItems only valid for logged-in users
-  List<CartItemModel> get cartItems  => _activeCart?.items ?? [];
-  // Convenience: total item count for badge display
-  int get cartItemCount => cartItems.fold(0, (sum, i) => sum + i.quantity);
+  List<Product>       get products      => _products;
+  CartModel?          get activeCart    => _activeCart;
+  bool                get isLoading     => _isLoading;
+  String?             get error         => _error;
+  List<CartItemModel> get cartItems     => _activeCart?.items ?? [];
+  // Total item quantity — used for the cart badge in Menu / Home
+  int get cartItemCount =>
+      cartItems.fold(0, (sum, i) => sum + i.quantity);
 
   void _setLoading(bool v) { _isLoading = v; notifyListeners(); }
   void clearError()        { _error = null;  notifyListeners(); }
 
-  // ── READ only products (only available) ───────────────────
+  // ── READ: products (available only, sorted) ───────────────────
   Future<void> fetchProducts() async {
     _setLoading(true);
     _error = null;
@@ -196,7 +180,8 @@ class MenuCartProvider extends ChangeNotifier {
           .select()
           .eq('is_available', true)
           .order('sort_order', ascending: true);
-      _products = (response as List).map((j) => Product.fromJson(j)).toList();
+      _products =
+          (response as List).map((j) => Product.fromJson(j)).toList();
       notifyListeners();
     } catch (e) {
       _error = 'fetchProducts error: $e';
@@ -213,14 +198,14 @@ class MenuCartProvider extends ChangeNotifier {
     try {
       final rows = await _db
           .from('cart_item')
-          .select('*, product(*)')
+          .select('*, product(*)')           // nested JOIN
           .eq('cart_id', _activeCart!.cartId)
           .order('created_at', ascending: true);
 
       final items = <CartItemModel>[];
       for (final row in (rows as List)) {
-        // row['product'] is the nested product object from the JOIN
-        final product = Product.fromJson(row['product'] as Map<String, dynamic>);
+        final product =
+        Product.fromJson(row['product'] as Map<String, dynamic>);
         items.add(CartItemModel.fromJson(row, product));
       }
       _activeCart!.items = items;
@@ -232,17 +217,17 @@ class MenuCartProvider extends ChangeNotifier {
     }
   }
 
-
+  // ── Public refresh ────────────────────────────────────────────
   Future<void> refreshCart() async {
     if (_products.isEmpty) await fetchProducts();
     await _fetchCartItems();
   }
 
   // ── CREATE / REUSE active cart ────────────────────────────────
-  // Skips entirely for guests (userId == 0).
+  // Only for logged-in users (userId > 0).
   // cart_id is auto-incremented by DB — never pass it in INSERT.
   Future<void> initCart(int userId) async {
-    if (userId <= 0) return; // guest — no Supabase cart
+    if (userId <= 0) return; // guest blocked
 
     _setLoading(true);
     _error = null;
@@ -264,7 +249,7 @@ class MenuCartProvider extends ChangeNotifier {
           items:  [],
         );
       } else {
-
+        // INSERT: only user_id + cart_status; cart_id auto-incremented
         final newCart = await _db
             .from('cart')
             .insert({'user_id': userId, 'cart_status': 'active'})
@@ -288,16 +273,18 @@ class MenuCartProvider extends ChangeNotifier {
     }
   }
 
-  // ── CREATE / MERGE: add item to Supabase cart ─────────────────
+  // ── CREATE / MERGE: add item ──────────────────────────────────
   // Returns null on success, error string on failure.
-  // Guests should use _guestCart in Menu, not this method.
+  // Blocked for guests (userId <= 0).
   Future<String?> addToCart({
     required int userId,
     required int productId,
     required int quantity,
     required AddOnSelection addOnSelection,
   }) async {
-    if (userId <= 0) return 'Guest mode — please log in to add to cart';
+    if (userId <= 0) {
+      return 'Please log in to add items to cart';
+    }
 
     if (_activeCart == null) await initCart(userId);
     if (_activeCart == null) return 'Failed to create cart';
@@ -306,21 +293,27 @@ class MenuCartProvider extends ChangeNotifier {
     _error = null;
     try {
       final productRes = await _db
-          .from('product').select().eq('id', productId).single();
+          .from('product')
+          .select()
+          .eq('id', productId)
+          .single();
       final product = Product.fromJson(productRes);
 
-      if (!product.isAvailable) return '${product.name} is currently unavailable';
+      if (!product.isAvailable) {
+        return '${product.name} is currently unavailable';
+      }
 
-      // MERGE: if same productId already in cart → UPDATE quantity
+      // MERGE: same product already in cart → UPDATE quantity
       final existing = _activeCart!.items
           .where((i) => i.productId == productId)
           .toList();
 
       if (existing.isNotEmpty) {
-        final item     = existing.first;
-        final newQty   = item.quantity + quantity;
-        final newSub   = product.price * newQty;
-        await _db.from('cart_item')
+        final item   = existing.first;
+        final newQty = item.quantity + quantity;
+        final newSub = product.price * newQty;
+        await _db
+            .from('cart_item')
             .update({'quantity': newQty, 'subtotal': newSub})
             .eq('cart_item_id', item.cartItemId!);
         item.quantity = newQty;
@@ -347,8 +340,9 @@ class MenuCartProvider extends ChangeNotifier {
         quantity:      quantity,
         subtotal:      subtotal,
         createdAt:     res['created_at'] != null
-            ? DateTime.parse(res['created_at'] as String) : null,
-        product:       product,
+            ? DateTime.parse(res['created_at'] as String)
+            : null,
+        product:        product,
         addOnSelection: addOnSelection,
       ));
       notifyListeners();
@@ -370,7 +364,8 @@ class MenuCartProvider extends ChangeNotifier {
     _error = null;
     try {
       final newSubtotal = item.product.price * newQty;
-      await _db.from('cart_item')
+      await _db
+          .from('cart_item')
           .update({'quantity': newQty, 'subtotal': newSubtotal})
           .eq('cart_item_id', item.cartItemId!);
       item.quantity = newQty;
@@ -390,10 +385,12 @@ class MenuCartProvider extends ChangeNotifier {
     _setLoading(true);
     _error = null;
     try {
-      await _db.from('cart_item')
+      await _db
+          .from('cart_item')
           .delete()
           .eq('cart_item_id', item.cartItemId!);
-      _activeCart!.items.removeWhere((i) => i.cartItemId == item.cartItemId);
+      _activeCart!.items
+          .removeWhere((i) => i.cartItemId == item.cartItemId);
       notifyListeners();
     } catch (e) {
       _error = 'removeCartItem error: $e';
@@ -405,14 +402,19 @@ class MenuCartProvider extends ChangeNotifier {
   }
 
   // ── DELETE: bulk ──────────────────────────────────────────────
-  Future<void> removeMultipleItems(List<CartItemModel> itemsToRemove) async {
+  Future<void> removeMultipleItems(
+      List<CartItemModel> itemsToRemove) async {
     if (itemsToRemove.isEmpty) return;
     _setLoading(true);
     _error = null;
     try {
       final ids = itemsToRemove.map((i) => i.cartItemId!).toList();
-      await _db.from('cart_item').delete().inFilter('cart_item_id', ids);
-      _activeCart!.items.removeWhere((i) => ids.contains(i.cartItemId));
+      await _db
+          .from('cart_item')
+          .delete()
+          .inFilter('cart_item_id', ids);
+      _activeCart!.items
+          .removeWhere((i) => ids.contains(i.cartItemId));
       notifyListeners();
     } catch (e) {
       _error = 'removeMultipleItems error: $e';
@@ -423,8 +425,8 @@ class MenuCartProvider extends ChangeNotifier {
     }
   }
 
-  // ── Mark cart checked-out  ──────────────────
-  // DB update is done inside payment.dart after payment succeeds.
+  // ── Mark cart checked-out (local state only) ──────────────────
+  // DB cart_status update is done inside payment.dart.
   void markCartCheckedOut() {
     _activeCart = null;
     notifyListeners();

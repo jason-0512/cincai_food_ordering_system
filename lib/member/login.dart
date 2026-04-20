@@ -61,7 +61,7 @@ class _LoginState extends State<Login> {
     if (role == 'admin') {
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (_) => const AdminPage()),
+        MaterialPageRoute(builder: (_) => AdminPage(userId: user['id'] as int)),
             (route) => false,
       );
     } else {
@@ -78,6 +78,7 @@ class _LoginState extends State<Login> {
       SnackBar(
         content: Text(msg),
         backgroundColor: const Color(0xFFCF0000),
+        behavior: SnackBarBehavior.floating,
       ),
     );
   }

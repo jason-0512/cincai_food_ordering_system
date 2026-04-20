@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../member/supabase_service.dart';
+import 'promotion_detail.dart';
 import 'promotion_add.dart';
 
 class PromotionManagement extends StatefulWidget {
@@ -152,7 +153,7 @@ class _PromotionManagementState extends State<PromotionManagement> {
         final result = await Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => PromotionAdd(existing: promo),
+            builder: (_) => PromotionDetail(promo: promo),
           ),
         );
 

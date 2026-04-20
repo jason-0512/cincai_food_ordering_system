@@ -60,8 +60,16 @@ class _HomeState extends State<Home> {
       onTap: () {
         setState(() => _selectedIndex = index);
         if (index == 1) {
-          // Anyone can browse menu — guests use userId 0
-          _showTablePickerDialog();
+          // Go directly to menu — table selection moved to payment page
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => Menu(
+                initialCategory: 'Set',
+                userId: _userId ?? 0,
+              ),
+            ),
+          ).then((_) => setState(() => _selectedIndex = 0));
         } else if (index == 2) {
           // Anyone can view cart — guests use userId 0
           Navigator.push(
@@ -117,7 +125,15 @@ class _HomeState extends State<Home> {
   Widget _categoryItem(String label, String imageUrl) {
     return GestureDetector(
       // Anyone can tap categories — guests use userId 0
-      onTap: () => _showTablePickerDialog(initialCategory: label),
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => Menu(
+            initialCategory: label,
+            userId: _userId ?? 0,
+          ),
+        ),
+      ).then((_) => setState(() => _selectedIndex = 0)),
       child: Padding(
         padding: const EdgeInsets.only(right: 16),
         child: Column(
@@ -139,7 +155,15 @@ class _HomeState extends State<Home> {
       String name, String price, String imageUrl, String category) {
     return GestureDetector(
       // Anyone can tap popular items — guests use userId 0
-      onTap: () => _showTablePickerDialog(initialCategory: category),
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => Menu(
+            initialCategory: category,
+            userId: _userId ?? 0,
+          ),
+        ),
+      ).then((_) => setState(() => _selectedIndex = 0)),
       child: Padding(
         padding: const EdgeInsets.only(right: 16),
         child: Column(
@@ -477,8 +501,15 @@ class _HomeState extends State<Home> {
                         final imageIndex =
                             index % _bannerImages.length;
                         return GestureDetector(
-                          onTap: () => _showTablePickerDialog(
-                              initialCategory: 'Set'),
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => Menu(
+                                initialCategory: 'Set',
+                                userId: _userId ?? 0,
+                              ),
+                            ),
+                          ).then((_) => setState(() => _selectedIndex = 0)),
                           child: Padding(
                             padding:
                             const EdgeInsets.only(right: 8.0),
