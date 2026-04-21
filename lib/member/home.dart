@@ -35,23 +35,67 @@ class _HomeState extends State<Home> {
 
   List<Map<String, String>> _popularItems = [];
 
+  // Full product list used for search
+  List<Map<String, dynamic>> _allProducts = [];
+
+  // Search state
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+  // Grouped search results: { category: [products] }
+  Map<String, List<Map<String, dynamic>>> _searchResults = {};
+
   final PageController _bannerController = PageController(initialPage: 9999);
   int _currentBannerIndex = 0;
   Timer? _bannerTimer;
 
-  IconData _currentIcon() {
-    switch (_selectedIndex) {
-      case 0:
-        return Icons.home_rounded;
-      case 1:
-        return Icons.rice_bowl_outlined;
-      case 2:
-        return Icons.shopping_cart_outlined;
-      case 3:
-        return Icons.person_outline;
-      default:
-        return Icons.home_rounded;
+  // ── Search logic ──────────────────────────────────────────────
+  void _onSearchChanged(String query) {
+    setState(() {
+      _searchQuery = query.trim().toLowerCase();
+      _searchResults = _computeSearchResults(_searchQuery);
+    });
+  }
+
+  Map<String, List<Map<String, dynamic>>> _computeSearchResults(String query) {
+    if (query.isEmpty) return {};
+
+    final Map<String, List<Map<String, dynamic>>> grouped = {};
+
+    for (final product in _allProducts) {
+      final name     = (product['name']     as String? ?? '').toLowerCase();
+      final category = (product['category'] as String? ?? '');
+      final catLower = category.toLowerCase();
+
+      // Match if query hits the category name OR the food name
+      final matchesCategory = catLower.contains(query);
+      final matchesName     = name.contains(query);
+
+      if (matchesCategory || matchesName) {
+        grouped.putIfAbsent(category, () => []);
+        grouped[category]!.add(product);
+      }
     }
+
+    return grouped;
+  }
+
+  void _clearSearch() {
+    _searchController.clear();
+    FocusScope.of(context).unfocus();
+    setState(() {
+      _searchQuery = '';
+      _searchResults = {};
+    });
+  }
+
+  void _closeSearch() {
+    _searchController.clear();
+    FocusScope.of(context).unfocus();
+    setState(() {
+      _searchQuery = '';
+      _searchResults = {};
+      _isSearching = false;
+    });
   }
 
   Widget _navItem(IconData icons, String label, int index) {
@@ -60,7 +104,6 @@ class _HomeState extends State<Home> {
       onTap: () {
         setState(() => _selectedIndex = index);
         if (index == 1) {
-          // Go directly to menu — table selection moved to payment page
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -71,7 +114,6 @@ class _HomeState extends State<Home> {
             ),
           ).then((_) => setState(() => _selectedIndex = 0));
         } else if (index == 2) {
-          // Anyone can view cart — guests use userId 0
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -111,11 +153,9 @@ class _HomeState extends State<Home> {
             Text(label,
                 style: TextStyle(
                     fontSize: 11,
-                    color:
-                    isSelected ? const Color(0xFFCF0000) : Colors.grey,
-                    fontWeight: isSelected
-                        ? FontWeight.w600
-                        : FontWeight.normal)),
+                    color: isSelected ? const Color(0xFFCF0000) : Colors.grey,
+                    fontWeight:
+                    isSelected ? FontWeight.w600 : FontWeight.normal)),
           ],
         ),
       ),
@@ -124,7 +164,6 @@ class _HomeState extends State<Home> {
 
   Widget _categoryItem(String label, String imageUrl) {
     return GestureDetector(
-      // Anyone can tap categories — guests use userId 0
       onTap: () => Navigator.push(
         context,
         MaterialPageRoute(
@@ -154,7 +193,6 @@ class _HomeState extends State<Home> {
   Widget _popularItem(
       String name, String price, String imageUrl, String category) {
     return GestureDetector(
-      // Anyone can tap popular items — guests use userId 0
       onTap: () => Navigator.push(
         context,
         MaterialPageRoute(
@@ -181,135 +219,10 @@ class _HomeState extends State<Home> {
                     color: Colors.black)),
             const SizedBox(height: 4),
             Text(price,
-                style:
-                const TextStyle(fontSize: 12, color: Colors.grey)),
+                style: const TextStyle(fontSize: 12, color: Colors.grey)),
           ],
         ),
       ),
-    );
-  }
-
-  void _showTablePickerDialog({String initialCategory = 'Set'}) {
-    int? selectedTable;
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      barrierColor: Colors.black.withOpacity(0.5),
-      builder: (context) {
-        return BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
-          child: StatefulBuilder(
-            builder: (context, setDialogState) {
-              return Dialog(
-                backgroundColor: const Color(0xFFF5F5F7),
-                insetPadding:
-                const EdgeInsets.symmetric(horizontal: 100),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20)),
-                child: Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text(
-                        'Select Your Table Number',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black),
-                      ),
-                      const SizedBox(height: 16),
-                      SizedBox(
-                        width: 200,
-                        height: 250,
-                        child: ListView.builder(
-                          itemCount: 14,
-                          itemBuilder: (context, index) {
-                            final tableNumber = index + 1;
-                            final isSelected = selectedTable == tableNumber;
-                            return GestureDetector(
-                              onTap: () => setDialogState(
-                                      () => selectedTable = tableNumber),
-                              child: Container(
-                                height: 40,
-                                margin: const EdgeInsets.only(bottom: 6),
-                                decoration: BoxDecoration(
-                                  color: isSelected
-                                      ? const Color(0xFFCF0000)
-                                      : Colors.white,
-                                  borderRadius: BorderRadius.circular(10),
-                                  border: Border.all(
-                                    color: isSelected
-                                        ? const Color(0xFFCF0000)
-                                        : Colors.grey.withOpacity(0.3),
-                                    width: 1,
-                                  ),
-                                ),
-                                child: Center(
-                                  child: Text('$tableNumber',
-                                      style: TextStyle(
-                                          fontSize: 15,
-                                          fontWeight: FontWeight.bold,
-                                          color: isSelected
-                                              ? Colors.white
-                                              : Colors.black)),
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          TextButton(
-                            onPressed: () {
-                              Navigator.pop(context);
-                              setState(() => _selectedIndex = 0);
-                            },
-                            child: const Text('Cancel',
-                                style: TextStyle(color: Colors.grey)),
-                          ),
-                          ElevatedButton(
-                            onPressed: selectedTable == null
-                                ? null
-                                : () {
-                              Navigator.pop(context);
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => Menu(
-                                    initialCategory: initialCategory,
-                                    // Pass _userId — 0 for guests
-                                    userId: _userId ?? 0,
-                                  ),
-                                ),
-                              ).then((_) =>
-                                  setState(() => _selectedIndex = 0));
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFFCF0000),
-                              disabledBackgroundColor:
-                              Colors.grey.withOpacity(0.3),
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(50)),
-                            ),
-                            child: const Text('Confirm',
-                                style: TextStyle(color: Colors.white)),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
-        );
-      },
     );
   }
 
@@ -329,6 +242,7 @@ class _HomeState extends State<Home> {
   void dispose() {
     _bannerTimer?.cancel();
     _bannerController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -440,10 +354,236 @@ class _HomeState extends State<Home> {
         if (bannerImages.isNotEmpty) _bannerImages = bannerImages;
         _categoryImages = categoryImages;
         _popularItems = popularItems;
+        // Store ALL products for search
+        _allProducts = List<Map<String, dynamic>>.from(response);
       });
     } catch (e) {
       print('Error fetching home data: $e');
     }
+  }
+
+  // ── Search results UI ─────────────────────────────────────────
+  Widget _buildSearchResults() {
+    // Empty query → show placeholder
+    if (_searchQuery.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text(
+              'Search by food name or category',
+              style: TextStyle(fontSize: 14, color: Colors.grey),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // No matches found
+    if (_searchResults.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              'No results for "$_searchQuery"',
+              style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Try searching by category (e.g. "Set") or food name.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 13, color: Colors.grey),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Show grouped results
+    return ListView(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      children: [
+        // Results count
+        Padding(
+          padding: const EdgeInsets.only(top: 4, bottom: 12),
+          child: Text(
+            '${_searchResults.values.fold(0, (s, l) => s + l.length)} result(s) for "$_searchQuery"',
+            style: const TextStyle(fontSize: 13, color: Colors.grey),
+          ),
+        ),
+
+        ..._searchResults.entries.map((entry) {
+          final category = entry.key;
+          final products = entry.value;
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Category header — tappable to open full menu
+              GestureDetector(
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => Menu(
+                      initialCategory: category,
+                      userId: _userId ?? 0,
+                    ),
+                  ),
+                ).then((_) => setState(() => _selectedIndex = 0)),
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Row(
+                    children: [
+                      Text(
+                        category,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFFCF0000),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      const Icon(Icons.chevron_right,
+                          color: Color(0xFFCF0000), size: 18),
+                    ],
+                  ),
+                ),
+              ),
+
+              // Product rows for this category
+              ...products.map((product) {
+                final name     = product['name']      as String? ?? '';
+                final price    = (product['price']    as num?)?.toDouble() ?? 0.0;
+                final imageUrl = product['image_url'] as String? ?? '';
+                final desc     = product['description'] as String? ?? '';
+
+                return GestureDetector(
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => Menu(
+                        initialCategory: category,
+                        userId: _userId ?? 0,
+                      ),
+                    ),
+                  ).then((_) => setState(() => _selectedIndex = 0)),
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.6),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                                color: Colors.white.withOpacity(0.8),
+                                width: 1),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Food info
+                              Expanded(
+                                child: Padding(
+                                  padding:
+                                  const EdgeInsets.only(right: 12),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                    CrossAxisAlignment.start,
+                                    children: [
+                                      // Highlight matching text in name
+                                      _buildHighlightedText(
+                                        name,
+                                        _searchQuery,
+                                        const TextStyle(
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.black),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'RM ${price.toStringAsFixed(2)}',
+                                        style: const TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w600,
+                                            color: Color(0xFFCF0000)),
+                                      ),
+                                      if (desc.isNotEmpty) ...[
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          desc,
+                                          style: const TextStyle(
+                                              fontSize: 12,
+                                              color: Colors.grey),
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                              ),
+
+                              // Food image
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(10),
+                                child:
+                                _buildImage(imageUrl, width: 90, height: 90),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }),
+
+              const SizedBox(height: 8),
+            ],
+          );
+        }),
+      ],
+    );
+  }
+
+  // Highlights the matching part of text in bold red
+  Widget _buildHighlightedText(
+      String text, String query, TextStyle baseStyle) {
+    if (query.isEmpty) return Text(text, style: baseStyle);
+
+    final lowerText  = text.toLowerCase();
+    final lowerQuery = query.toLowerCase();
+    final matchIndex = lowerText.indexOf(lowerQuery);
+
+    if (matchIndex == -1) return Text(text, style: baseStyle);
+
+    return RichText(
+      text: TextSpan(
+        style: baseStyle,
+        children: [
+          if (matchIndex > 0)
+            TextSpan(text: text.substring(0, matchIndex)),
+          TextSpan(
+            text: text.substring(matchIndex, matchIndex + query.length),
+            style: baseStyle.copyWith(
+              color: const Color(0xFFCF0000),
+              backgroundColor: const Color(0xFFCF0000).withOpacity(0.08),
+            ),
+          ),
+          if (matchIndex + query.length < text.length)
+            TextSpan(
+                text: text.substring(matchIndex + query.length)),
+        ],
+      ),
+    );
   }
 
   @override
@@ -476,10 +616,11 @@ class _HomeState extends State<Home> {
           children: [
             Expanded(
               child: _isSearching
-                  ? const SizedBox()
+              // ── SEARCH MODE ───────────────────────────────
+                  ? _buildSearchResults()
+              // ── NORMAL HOME ───────────────────────────────
                   : ListView(
-                padding:
-                const EdgeInsets.symmetric(horizontal: 16),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
                 children: [
                   SizedBox(
                     height: 250,
@@ -509,7 +650,8 @@ class _HomeState extends State<Home> {
                                 userId: _userId ?? 0,
                               ),
                             ),
-                          ).then((_) => setState(() => _selectedIndex = 0)),
+                          ).then((_) =>
+                              setState(() => _selectedIndex = 0)),
                           child: Padding(
                             padding:
                             const EdgeInsets.only(right: 8.0),
@@ -534,10 +676,9 @@ class _HomeState extends State<Home> {
                       _bannerImages.length,
                           (index) => AnimatedContainer(
                         duration: const Duration(milliseconds: 300),
-                        margin: const EdgeInsets.symmetric(
-                            horizontal: 4),
-                        width:
-                        _currentBannerIndex == index ? 20 : 8,
+                        margin:
+                        const EdgeInsets.symmetric(horizontal: 4),
+                        width: _currentBannerIndex == index ? 20 : 8,
                         height: 8,
                         decoration: BoxDecoration(
                           color: _currentBannerIndex == index
@@ -598,18 +739,20 @@ class _HomeState extends State<Home> {
                 ],
               ),
             ),
+
+            // ── SEARCH BAR (shown when searching) ────────────────
             if (_isSearching)
               Padding(
-                padding: const EdgeInsets.only(
-                    left: 16, right: 16, bottom: 24),
+                padding:
+                const EdgeInsets.only(left: 16, right: 16, bottom: 24),
                 child: Row(
                   children: [
+                    // Back / close button
                     GestureDetector(
-                      onTap: () => setState(() => _isSearching = false),
+                      onTap: _closeSearch,
                       child: ClipOval(
                         child: BackdropFilter(
-                          filter: ImageFilter.blur(
-                              sigmaX: 20, sigmaY: 20),
+                          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
                           child: Container(
                             width: 63,
                             height: 63,
@@ -620,23 +763,24 @@ class _HomeState extends State<Home> {
                                   color: Colors.white.withOpacity(0.8),
                                   width: 1),
                             ),
-                            child: Icon(_currentIcon(),
-                                color: Colors.grey, size: 24),
+                            child: const Icon(Icons.arrow_back,
+                                color: Colors.black),
                           ),
                         ),
                       ),
                     ),
                     const SizedBox(width: 12),
+
+                    // Search input
                     Expanded(
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(50),
                         child: BackdropFilter(
-                          filter: ImageFilter.blur(
-                              sigmaX: 20, sigmaY: 20),
+                          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
                           child: Container(
                             height: 63,
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 16),
+                            padding:
+                            const EdgeInsets.symmetric(horizontal: 16),
                             decoration: BoxDecoration(
                               color: Colors.white.withOpacity(0.6),
                               borderRadius: BorderRadius.circular(50),
@@ -649,22 +793,26 @@ class _HomeState extends State<Home> {
                                 const Icon(Icons.search,
                                     color: Colors.grey, size: 20),
                                 const SizedBox(width: 8),
-                                const Expanded(
+                                Expanded(
                                   child: TextField(
-                                    decoration: InputDecoration(
-                                      hintText: 'Search for food',
+                                    controller: _searchController,
+                                    autofocus: true,
+                                    onChanged: _onSearchChanged,
+                                    decoration: const InputDecoration(
+                                      hintText: 'Search food or category',
                                       border: InputBorder.none,
-                                      hintStyle: TextStyle(
-                                          color: Colors.grey),
+                                      hintStyle:
+                                      TextStyle(color: Colors.grey),
                                     ),
                                   ),
                                 ),
-                                GestureDetector(
-                                  onTap: () => setState(() =>
-                                      FocusScope.of(context).unfocus()),
-                                  child: const Icon(Icons.close,
-                                      color: Colors.grey, size: 20),
-                                ),
+                                // Clear button — only shown when there is text
+                                if (_searchQuery.isNotEmpty)
+                                  GestureDetector(
+                                    onTap: _clearSearch,
+                                    child: const Icon(Icons.close,
+                                        color: Colors.grey, size: 20),
+                                  ),
                               ],
                             ),
                           ),
@@ -680,8 +828,8 @@ class _HomeState extends State<Home> {
       bottomNavigationBar: _isSearching
           ? null
           : Padding(
-        padding: const EdgeInsets.only(
-            left: 16, right: 16, bottom: 24),
+        padding:
+        const EdgeInsets.only(left: 16, right: 16, bottom: 24),
         child: SizedBox(
           height: 80,
           child: Row(
@@ -690,8 +838,7 @@ class _HomeState extends State<Home> {
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(50),
                   child: BackdropFilter(
-                    filter: ImageFilter.blur(
-                        sigmaX: 20, sigmaY: 20),
+                    filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
                     child: Container(
                       padding: const EdgeInsets.symmetric(
                           vertical: 8, horizontal: 8),
@@ -724,8 +871,7 @@ class _HomeState extends State<Home> {
                 onTap: () => setState(() => _isSearching = true),
                 child: ClipOval(
                   child: BackdropFilter(
-                    filter: ImageFilter.blur(
-                        sigmaX: 20, sigmaY: 20),
+                    filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
                     child: Container(
                       width: 63,
                       height: 63,
