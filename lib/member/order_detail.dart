@@ -186,7 +186,6 @@ class _OrderDetailState extends State<OrderDetail> {
   }
 
   Widget _buildContent() {
-    // Use values directly from DB — no recalculation
     final grossTotal      = (_order!['gross_total']      as num?)?.toDouble() ?? 0.0;
     final totalAmount     = (_order!['total_amount']     as num?)?.toDouble() ?? 0.0;
     final discountAmount  = (_order!['discounted_amount'] as num?)?.toDouble() ?? 0.0;

@@ -30,7 +30,7 @@ class _OrderState extends State<Order> {
   void initState() {
     super.initState();
     _fetchOrders();
-    // Poll every 2 seconds for status updates
+    //Make every 2 seconds for status updates
     _pollingTimer = Timer.periodic(const Duration(seconds: 2), (_) {
       if (mounted) _fetchOrders(silent: true);
     });
@@ -43,9 +43,8 @@ class _OrderState extends State<Order> {
   }
 
   Future<void> _fetchOrders({bool silent = false}) async {
-    if (_isFetching) return; // prevent concurrent fetches
+    if (_isFetching) return;
     _isFetching = true;
-    // If silent, don't show spinner — used for polling refresh
     if (!silent) setState(() => _isLoading = true);
     try {
       //Step 1: Get userId from email
@@ -71,7 +70,7 @@ class _OrderState extends State<Order> {
           .inFilter('status', ['pending', 'preparing', 'ready', 'sent'])
           .order('created_at', ascending: false);
 
-      // Hide only when order is 'sent' AND payment is 'success'
+      // Hide order when order is 'sent' AND payment is 'success'
       final orderResult = (rawOrders as List).where((order) {
         final orderStatus = order['status'] as String?;
         final payments = order['payment'] as List?;
@@ -129,7 +128,7 @@ class _OrderState extends State<Order> {
     }
   }
 
-  // ── Cancel order — only allowed for pending status ────────────
+  //Cancel order for Pending order only
   Future<void> _cancelOrder(int orderId) async {
     // Show confirmation dialog first
     final confirmed = await showDialog<bool>(
@@ -328,7 +327,6 @@ class _OrderState extends State<Order> {
                 ],
               ),
             ),
-            // ===== CONTENT =====
             Expanded(
               child: _isLoading
               // Show spinner while fetching
@@ -338,9 +336,9 @@ class _OrderState extends State<Order> {
                 ),
               )
                   : _orders.isEmpty
-              // No orders → show empty state
+              // No orders -> show empty state
                   ? _buildEmptyState()
-              // Has orders → show list
+              // Has orders -> show list
                   : _buildOrderList(),
             ),
           ],
@@ -516,7 +514,7 @@ class _OrderState extends State<Order> {
 
                       const SizedBox(height: 15),
 
-                      // Total qty + Cancel button row
+                      // otal qty + Cancel button row
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -529,7 +527,7 @@ class _OrderState extends State<Order> {
                             ),
                           ),
 
-                          // Cancel button — only shown for pending orders
+                          //Cancel button
                           if (isPending)
                             GestureDetector(
                               // Stop tap from also triggering the card's onTap
