@@ -3,12 +3,21 @@ import 'package:flutter/services.dart';
 import 'dart:ui';
 import '../member/supabase_service.dart';
 import 'promotion_add.dart';
+
 class PromotionDetail extends StatefulWidget {
   final Map<String, dynamic> promo;
-  const PromotionDetail({super.key, required this.promo});
+  final int adminId;
+
+  const PromotionDetail({
+    super.key,
+    required this.promo,
+    required this.adminId,
+  });
+
   @override
   State<PromotionDetail> createState() => _PromotionDetailState();
 }
+
 class _PromotionDetailState extends State<PromotionDetail> {
   late Map<String, dynamic> _promo;
   @override
@@ -100,7 +109,7 @@ class _PromotionDetailState extends State<PromotionDetail> {
     );
     if (confirmed != true) return;
     final String? error = await SupabaseService.discontinuePromotion(
-        _promo['promotion_id'] as int);
+        _promo['promotion_id'] as int, widget.adminId);
     if (!mounted) return;
     if (error != null) {
       _showSnackBar('Error: $error');
@@ -178,7 +187,7 @@ class _PromotionDetailState extends State<PromotionDetail> {
     );
     if (confirmed != true) return;
     final String? error = await SupabaseService.deletePromotion(
-        _promo['promotion_id'] as int);
+        _promo['promotion_id'] as int, widget.adminId);
     if (!mounted) return;
     if (error != null) {
       _showSnackBar('Error: $error');
@@ -352,7 +361,7 @@ class _PromotionDetailState extends State<PromotionDetail> {
                 await Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => PromotionAdd(existing: _promo),
+                    builder: (_) => PromotionAdd(existing: _promo, adminId: widget.adminId),
                   ),
                 );
                 final updated = await SupabaseService.getAllPromotions();

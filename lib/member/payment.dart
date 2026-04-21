@@ -1,3 +1,4 @@
+
 import 'package:flutter/material.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 import 'dart:ui';
@@ -37,13 +38,9 @@ class PaymentCartItem {
   }
 }
 
-// ═══════════════════════════════════════════════════════════════
-// Payment widget
-// ═══════════════════════════════════════════════════════════════
 class Payment extends StatefulWidget {
-  // ── Passed from Cart ─────────────────────────────────────────
-  final int userId;   // real logged-in user id
-  final int cartId;   // active cart id from Supabase
+  final int userId;
+  final int cartId;
 
   const Payment({
     super.key,
@@ -61,8 +58,8 @@ class _PaymentState extends State<Payment> {
   String _deliveryOption = 'standard';
 
   AddressItem? _selectedAddress;
-  PromotionItem? _selectedPromotion; // selected promotion code
-  int? _selectedTable; // selected table number for dine_in
+  PromotionItem? _selectedPromotion;
+  int? _selectedTable;
 
   List<PaymentCartItem> _cartItems   = [];
   bool  _isLoading    = true;
@@ -197,13 +194,12 @@ class _PaymentState extends State<Payment> {
     );
   }
 
-  // ── Fetch cart items for THIS specific cart ───────────────────
   Future<void> _fetchCartItems() async {
     try {
       final data = await supabase
           .from('cart_item')
           .select('*, product(*)')
-          .eq('cart_id', widget.cartId);   // ← uses passed cartId
+          .eq('cart_id', widget.cartId);
 
       if (mounted) {
         setState(() {
@@ -219,13 +215,12 @@ class _PaymentState extends State<Payment> {
     }
   }
 
-  // ── Fetch default address for THIS user ───────────────────────
   Future<void> _fetchDefaultAddress() async {
     try {
       final data = await supabase
           .from('address')
           .select()
-          .eq('user_id', widget.userId)    // ← uses passed userId
+          .eq('user_id', widget.userId)
           .eq('is_default', true)
           .maybeSingle();
 
@@ -242,7 +237,6 @@ class _PaymentState extends State<Payment> {
     if (mounted) setState(() => _isLoading = false);
   }
 
-  // ── Computed totals ───────────────────────────────────────────
   // Discount amount from selected promotion
   double get _discountAmount =>
       _selectedPromotion?.computeDiscount(_grossTotal) ?? 0.0;
@@ -257,10 +251,10 @@ class _PaymentState extends State<Payment> {
   double get _deliveryFee   => _orderType == 'delivery'
       ? (_deliveryOption == 'priority' ? _priorityFee : _standardFee)
       : 0.0;
+
   double get _totalPayable =>
       _discountedSubtotal + _sst + _serviceCharge + _deliveryFee;
 
-  // ── Address selection ─────────────────────────────────────────
   Future<void> _openAddressSelection() async {
     final result = await Navigator.push<AddressItem>(
       context,
@@ -268,6 +262,7 @@ class _PaymentState extends State<Payment> {
         builder: (_) => AddressSelectionScreen(
           userId:          widget.userId,
           currentSelected: _selectedAddress,
+          selectionMode: true,
         ),
       ),
     );
@@ -295,16 +290,22 @@ class _PaymentState extends State<Payment> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label,
-            style: TextStyle(
-                fontSize: 14,
-                fontWeight: bold ? FontWeight.bold : FontWeight.normal,
-                color: Colors.black)),
-        Text(amount,
-            style: TextStyle(
-                fontSize: 14,
-                fontWeight: bold ? FontWeight.bold : FontWeight.normal,
-                color: amountColor ?? Colors.black)),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: bold ? FontWeight.bold : FontWeight.normal,
+            color: Colors.black,
+          ),
+        ),
+        Text(
+          amount,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: bold ? FontWeight.bold : FontWeight.normal,
+            color: amountColor ?? Colors.black,
+          ),
+        ),
       ],
     );
   }
@@ -387,9 +388,6 @@ class _PaymentState extends State<Payment> {
     );
   }
 
-  // ─────────────────────────────────────────────────────────────
-  // BUILD
-  // ─────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -414,31 +412,38 @@ class _PaymentState extends State<Payment> {
                       child: ClipOval(
                         child: BackdropFilter(
                           filter: ImageFilter.blur(
-                              sigmaX: 20, sigmaY: 20),
+                            sigmaX: 20,
+                            sigmaY: 20,
+                          ),
                           child: Container(
-                            width: 54, height: 54,
+                            width: 54,
+                            height: 54,
                             decoration: BoxDecoration(
-                              color:
-                              Colors.white.withOpacity(0.6),
+                              color: Colors.white.withOpacity(0.6),
                               shape: BoxShape.circle,
                               border: Border.all(
-                                  color:
-                                  Colors.white.withOpacity(0.8),
-                                  width: 1),
+                                color: Colors.white.withOpacity(0.8),
+                                width: 1,
+                              ),
                             ),
-                            child: const Icon(Icons.arrow_back,
-                                color: Colors.black),
+                            child: const Icon(
+                              Icons.arrow_back,
+                              color: Colors.black,
+                            ),
                           ),
                         ),
                       ),
                     ),
                   ),
                   const Center(
-                    child: Text('Checkout',
-                        style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black)),
+                    child: Text(
+                      'Checkout',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -799,35 +804,28 @@ class _PaymentState extends State<Payment> {
     );
   }
 
-  // ─────────────────────────────────────────────────────────────
-  // _processOrder — uses widget.userId and widget.cartId
-  // ─────────────────────────────────────────────────────────────
   Future<void> _processOrder({
     required bool paid,
     required String paymentMethod,
     String? stripeIntentId,
   }) async {
-    // Stop if cart is empty
     if (_cartItems.isEmpty) throw Exception('Cart is empty');
 
     // Step 1 — Check if existing active dine_in order at same table for same user
-    // null means no existing order found
     int? existingOrderId;
 
     if (_orderType == 'dine_in') {
-      // Search for existing order with same user + same table + pending or preparing
       final existingOrder = await supabase
           .from('orders')
           .select()
-          .eq('user_id', widget.userId)                  // same user
-          .eq('table_number', _selectedTable ?? 1)        // same table number
-          .eq('order_type', 'dine_in')                   // dine in only
-          .inFilter('status', ['pending', 'preparing'])  // active orders only
-          .order('created_at', ascending: false)         // get newest first
-          .limit(1)                                      // only 1 row
-          .maybeSingle();                                // return 1 or null
+          .eq('user_id', widget.userId)
+          .eq('table_number', _selectedTable ?? 1)
+          .eq('order_type', 'dine_in')
+          .inFilter('status', ['pending', 'preparing'])
+          .order('created_at', ascending: false)
+          .limit(1)
+          .maybeSingle();
 
-      // If existing order found, save its order_id
       if (existingOrder != null) {
         existingOrderId = existingOrder['order_id'] as int;
       }
@@ -837,35 +835,30 @@ class _PaymentState extends State<Payment> {
     final int orderId;
 
     if (existingOrderId != null) {
-      // Use existing order id — add new items to it
       orderId = existingOrderId;
 
-      // Fetch current totals from existing order
-      final existingOrder = await supabase
+      final existingOrderData = await supabase
           .from('orders')
           .select('gross_total, total_amount')
           .eq('order_id', orderId)
           .single();
 
-      // Add new items total on top of existing order total
       final newGrossTotal =
-          (existingOrder['gross_total'] as num).toDouble()
+          (existingOrderData['gross_total'] as num).toDouble()
               + double.parse(_grossTotal.toStringAsFixed(2));
       final newTotalAmount =
-          (existingOrder['total_amount'] as num).toDouble()
+          (existingOrderData['total_amount'] as num).toDouble()
               + double.parse(_totalPayable.toStringAsFixed(2));
 
-      // Update the existing order totals
       await supabase.from('orders').update({
         'gross_total':  double.parse(newGrossTotal.toStringAsFixed(2)),
         'total_amount': double.parse(newTotalAmount.toStringAsFixed(2)),
       }).eq('order_id', orderId);
 
     } else {
-      // No existing order — create a brand new one
       final orderRes = await supabase.from('orders').insert({
-        'user_id':         widget.userId,        // passed userId
-        'cart_id':         widget.cartId,        // passed cartId
+        'user_id':         widget.userId,
+        'cart_id':         widget.cartId,
         'table_number':    _orderType == 'dine_in' ? _selectedTable : null,
         'delivery_option': _orderType == 'delivery' ? _deliveryOption : null,
         'address_id':      _orderType == 'delivery'
@@ -876,10 +869,8 @@ class _PaymentState extends State<Payment> {
         'status':          'pending',
         'order_type':      _orderType,
         'delivery_fee':    _deliveryFee,
-        // Save promotion id if promotion was applied
         if (_selectedPromotion != null)
           'promotion_id': _selectedPromotion!.promotionId,
-        // Save discount amount
         'discounted_amount': double.parse(_discountAmount.toStringAsFixed(2)),
       }).select().single();
 
@@ -896,25 +887,21 @@ class _PaymentState extends State<Payment> {
       'paid_at':          paid ? DateTime.now().toIso8601String() : null,
     });
 
-    // Step 4 — Insert order_item rows
-    // Mark is_addon as true if adding to existing order, false if new order
     for (final item in _cartItems) {
       await supabase.from('order_item').insert({
         'order_id':   orderId,
         'product_id': item.productId,
         'qty':        item.quantity,
         'subtotal':   double.parse(item.subtotal.toStringAsFixed(2)),
-        'is_addon':   existingOrderId != null, // true if added to existing order
+        'is_addon':   existingOrderId != null,
       });
     }
 
-    // Step 5 — Mark cart as checked_out
     await supabase
         .from('cart')
         .update({'cart_status': 'checked_out'})
         .eq('cart_id', widget.cartId);
 
-    // Step 6 — Navigate to OrderDetail page
     if (mounted) {
       debugPrint('Navigating to OrderDetail: orderId=$orderId');
       Navigator.pushReplacement(
@@ -926,12 +913,9 @@ class _PaymentState extends State<Payment> {
           ),
         ),
       );
-    } else {
-      debugPrint('Widget unmounted, cannot navigate');
     }
   }
 
-  // ── Pay at counter ────────────────────────────────────────────
   Future<void> _payAtCounter() async {
     if (_isProcessing) return;
     setState(() => _isProcessing = true);
@@ -941,13 +925,13 @@ class _PaymentState extends State<Payment> {
       debugPrint('Order error: $e');
       if (mounted) {
         setState(() => _isProcessing = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Order failed: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Order failed: $e')));
       }
     }
   }
 
-  // ── Stripe card payment ───────────────────────────────────────
   Future<void> _stripePayment() async {
     if (_isProcessing) return;
     setState(() => _isProcessing = true);
@@ -955,8 +939,7 @@ class _PaymentState extends State<Payment> {
       final res = await Supabase.instance.client.functions.invoke(
         'create-payment-intent',
         body: {
-          'amount': (double.parse(_totalPayable.toStringAsFixed(2)) *
-              100)
+          'amount': (double.parse(_totalPayable.toStringAsFixed(2)) * 100)
               .round(),
           'currency': 'myr',
         },

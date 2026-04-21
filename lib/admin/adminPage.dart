@@ -1,6 +1,9 @@
 import 'package:cincai_food_ordering_system/admin/product_management.dart';
 import 'package:cincai_food_ordering_system/admin/promotion_management.dart';
+import 'package:cincai_food_ordering_system/member/home.dart';
 import 'package:flutter/material.dart';
+import 'package:cincai_food_ordering_system/admin/audit_log.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AdminPage extends StatelessWidget {
   final int userId;
@@ -11,12 +14,54 @@ class AdminPage extends StatelessWidget {
   });
 
   @override
+
+  Future<void> _logout(BuildContext context) async {
+    final bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Log Out'),
+        content: const Text('Are you sure you want to log out?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Log Out',
+                style: TextStyle(
+                    color: Color(0xFFCF0000), fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      await Supabase.instance.client.auth.signOut();
+
+      if (!context.mounted) return;
+
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const Home()),
+            (route) => false,
+      );
+    }
+  }
+
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Admin Panel'),
         backgroundColor: const Color(0xFFCF0000),
         foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            tooltip: 'Log Out',
+            onPressed: () => _logout(context),
+          ),
+        ],
       ),
       body: ListView(
         padding: const EdgeInsets.all(20),
@@ -40,7 +85,7 @@ class AdminPage extends StatelessWidget {
             subtitle: 'Manage discount codes and offers',
             onTap: () => Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => const PromotionManagement()),
+              MaterialPageRoute(builder: (_) => PromotionManagement(adminId: userId)),
             ),
           ),
           const SizedBox(height: 20),
@@ -49,9 +94,12 @@ class AdminPage extends StatelessWidget {
             context,
             icon: Icons.description_outlined,
             title: 'Audit Log',
-            subtitle: 'Track admin activity — coming soon',
-            enabled: false,
-            onTap: null,
+            subtitle: 'Track admin activity',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (_) => AuditLog(adminId: userId)),
+            ),
           ),
         ],
       ),

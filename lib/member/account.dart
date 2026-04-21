@@ -4,6 +4,7 @@ import 'supabase_service.dart';
 import 'login.dart';
 import 'profile.dart';
 import 'order.dart';
+import 'address_selection.dart';
 
 class Account extends StatefulWidget {
   final String email;
@@ -17,6 +18,7 @@ class Account extends StatefulWidget {
 class _AccountState extends State<Account> {
   String _name = '';
   bool _loading = true;
+  int? _userId;
 
   @override
   void initState() {
@@ -31,6 +33,7 @@ class _AccountState extends State<Account> {
 
     setState(() {
       _name = data?['name'] ?? 'User';
+      _userId = data?['id'];
       _loading = false;
     });
   }
@@ -219,7 +222,20 @@ class _AccountState extends State<Account> {
                   );
                 }),
                 _divider(),
-                _tile(Icons.location_on_outlined, "My Addresses"),
+                _tile(
+                  Icons.location_on_outlined,
+                  "My Addresses",
+                  onTap: () {
+                    if (_userId != null) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => AddressSelectionScreen(userId: _userId!, selectionMode: false),
+                        ),
+                      );
+                    }
+                  },
+                ),
               ]),
 
               const SizedBox(height: 20),

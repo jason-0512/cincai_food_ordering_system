@@ -4,7 +4,8 @@ import 'promotion_detail.dart';
 import 'promotion_add.dart';
 
 class PromotionManagement extends StatefulWidget {
-  const PromotionManagement({super.key});
+  final int adminId;
+  const PromotionManagement({super.key, required this.adminId});
 
   @override
   State<PromotionManagement> createState() =>
@@ -79,7 +80,7 @@ class _PromotionManagementState extends State<PromotionManagement> {
               await Navigator.push(
                 context,
                 MaterialPageRoute(
-                    builder: (_) => const PromotionAdd()),
+                    builder: (_) => PromotionAdd(adminId: widget.adminId)),
               );
               // Reload list when returning from add page
               _loadPromotions();
@@ -153,7 +154,7 @@ class _PromotionManagementState extends State<PromotionManagement> {
         final result = await Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => PromotionDetail(promo: promo),
+            builder: (_) => PromotionDetail(promo: promo, adminId: widget.adminId,),
           ),
         );
 

@@ -42,11 +42,13 @@ class AddressItem {
 class AddressSelectionScreen extends StatefulWidget {
   final int userId;
   final AddressItem? currentSelected;
+  final bool selectionMode;
 
   const AddressSelectionScreen({
     super.key,
     required this.userId,
     this.currentSelected,
+    this.selectionMode = true,
   });
 
   @override
@@ -98,6 +100,7 @@ class _AddressSelectionScreenState extends State<AddressSelectionScreen> {
           .from('address')
           .select()
           .eq('user_id', widget.userId)
+          .eq('is_deleted', false)
           .order('is_default', ascending: false);
 
       if (mounted) {
@@ -172,18 +175,22 @@ class _AddressSelectionScreenState extends State<AddressSelectionScreen> {
     try {
       await _supabase
           .from('address')
-          .delete()
+          .update({'is_deleted': true, 'is_default': false})
           .eq('address_id', address.addressId);
 
       if (_selected?.addressId == address.addressId) {
         setState(() => _selected = null);
       }
-      // Close form if we deleted the address being edited
+
       if (_formTargetId == address.addressId) _closeForm();
 
       await _fetchAddresses();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Address removed successfully"))
+      );
     } catch (e) {
-      debugPrint('Delete address error: $e');
+      debugPrint('Archive address error: $e');
     }
   }
 
@@ -477,19 +484,17 @@ class _AddressSelectionScreenState extends State<AddressSelectionScreen> {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.only(top: 2),
-                    child: Icon(
-                      isSelected
-                          ? Icons.radio_button_checked
-                          : Icons.radio_button_unchecked,
-                      color: isSelected
-                          ? const Color(0xFFCF0000)
-                          : Colors.grey,
-                      size: 20,
+                  if (widget.selectionMode)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Icon(
+                        isSelected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+                        color: isSelected ? const Color(0xFFCF0000) : Colors.grey,
+                        size: 20,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
+                  if (widget.selectionMode) const SizedBox(width: 12),
+
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -653,14 +658,10 @@ class _AddressSelectionScreenState extends State<AddressSelectionScreen> {
                       ),
                     ),
                   ),
-                  const Center(
+                  Center(
                     child: Text(
-                      'Select Address',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black,
-                      ),
+                      widget.selectionMode ? 'Select Address' : 'My Addresses',
+                      style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                     ),
                   ),
                 ],
@@ -736,30 +737,28 @@ class _AddressSelectionScreenState extends State<AddressSelectionScreen> {
             ),
 
             // ── Confirm button ───────────────────────────────────────────────
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
-              child: ElevatedButton(
-                onPressed: _selected == null
-                    ? null
-                    : () => Navigator.pop(context, _selected),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFCF0000),
-                  disabledBackgroundColor: Colors.grey.withOpacity(0.4),
-                  minimumSize: const Size(double.infinity, 56),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(50),
+            if (widget.selectionMode)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+                child: ElevatedButton(
+                  onPressed: _selected == null
+                      ? null
+                      : () => Navigator.pop(context, _selected),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFCF0000),
+                    disabledBackgroundColor: Colors.grey.withOpacity(0.4),
+                    minimumSize: const Size(double.infinity, 56),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(50),
+                    ),
                   ),
-                ),
-                child: const Text(
-                  'Confirm Address',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                  child: const Text(
+                    'Confirm Address',
+                    style: TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
                   ),
                 ),
               ),
-            ),
           ],
         ),
       ),

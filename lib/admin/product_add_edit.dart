@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-
+import '../services/audit_service.dart';
 
 class ProductAdd extends StatefulWidget {
   final Map<String, dynamic>? product;
@@ -80,22 +80,33 @@ class _ProductAddState extends State<ProductAdd> {
       if (_isEdit) {
         final id = widget.product!['id'];
         await _db.from('product').update(payload).eq('id', id);
+        await AuditService.log(
+          adminId: widget.adminId,
+          action: 'product.update',
+          entityType: 'product',
+          entityId: id.toString(),
+          oldValue: widget.product,
+          newValue: payload,
+        );
       } else {
-        await _db
+        final result = await _db
             .from('product')
             .insert(payload)
             .select()
             .single();
+        await AuditService.log(
+          adminId: widget.adminId,
+          action: 'product.create',
+          entityType: 'product',
+          entityId: result['id'].toString(),
+          newValue: payload,
+        );
       }
       if (mounted) Navigator.pop(context);
     } catch (e) {
       setState(() => _saving = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: $e'),
-          backgroundColor: const Color(0xFFCF0000),
-          behavior: SnackBarBehavior.floating,
-        ),
+        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
       );
     }
   }

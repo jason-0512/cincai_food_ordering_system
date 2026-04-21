@@ -1,4 +1,5 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:cincai_food_ordering_system/services/audit_service.dart';
 
 class SupabaseService {
   static final SupabaseClient _client = Supabase.instance.client;
@@ -75,7 +76,7 @@ class SupabaseService {
     try {
       return await _client
           .from('users')
-          .select()
+          .select('id, name, email')
           .eq('email', email.trim())
           .maybeSingle();
     } catch (e) {
@@ -103,10 +104,10 @@ class SupabaseService {
         return "Phone number already in use";
       }
 
-      await _client.from('users').update({
-        'name': name.trim(),
-        'phone': cleanPhone,
-      }).eq('email', email.trim());
+      await _client
+          .from('users')
+          .update({'name': name.trim(), 'phone': cleanPhone})
+          .eq('email', email.trim());
 
       return null;
     } catch (e) {
@@ -151,10 +152,7 @@ class SupabaseService {
   // ================= DELETE ACCOUNT =================
   static Future<String?> deleteAccount(String email) async {
     try {
-      await _client
-          .from('users')
-          .delete()
-          .eq('email', email.trim());
+      await _client.from('users').delete().eq('email', email.trim());
 
       return null;
     } catch (e) {
@@ -170,6 +168,7 @@ class SupabaseService {
   // Promotion Management (Admin)
   // ================= CREATE NEW PROMO =================
   static Future<String?> createPromotion({
+    required int adminId,
     required String promotionCode,
     required String promotionName,
     required double minSpent,
@@ -180,16 +179,31 @@ class SupabaseService {
   }) async {
     try {
       final bool isActive = _computeIsActive(startDate, endDate);
-      await _client.from('promotion').insert({
-        'promotion_code':  promotionCode.trim().toUpperCase(),
-        'promotion_name':  promotionName.trim(),
-        'min_spent':       minSpent,
-        'discount_type':   discountType,
-        'discount_value':  discountValue,
-        'start_date':      startDate.toUtc().toIso8601String(),
-        'end_date':        endDate.toUtc().toIso8601String(),
-        'is_active':       isActive,
-      });
+      final newData = {
+        'promotion_code': promotionCode.trim().toUpperCase(),
+        'promotion_name': promotionName.trim(),
+        'min_spent': minSpent,
+        'discount_type': discountType,
+        'discount_value': discountValue,
+        'start_date': startDate.toUtc().toIso8601String(),
+        'end_date': endDate.toUtc().toIso8601String(),
+        'is_active': isActive,
+      };
+
+      final inserted = await _client
+          .from('promotion')
+          .insert(newData)
+          .select('promotion_id')
+          .single();
+
+      await AuditService.log(
+        adminId: adminId,
+        action: 'promo.create',
+        entityType: 'promotion',
+        entityId: inserted['promotion_id'].toString(),
+        newValue: newData,
+      );
+
       return null;
     } catch (e) {
       return e.toString();
@@ -204,8 +218,8 @@ class SupabaseService {
           .select()
           .order('created_at', ascending: false);
 
-      final List<Map<String, dynamic>> promos =
-      rows.cast<Map<String, dynamic>>();
+      final List<Map<String, dynamic>> promos = rows
+          .cast<Map<String, dynamic>>();
 
       for (final promo in promos) {
         final DateTime end = DateTime.parse(promo['end_date']).toLocal();
@@ -233,6 +247,7 @@ class SupabaseService {
 
   // ================= UPDATE PROMO =================
   static Future<String?> updatePromotion({
+    required int adminId,
     required int promotionId,
     required String promotionName,
     required double minSpent,
@@ -242,16 +257,36 @@ class SupabaseService {
     required DateTime endDate,
   }) async {
     try {
+      final old = await _client
+          .from('promotion')
+          .select()
+          .eq('promotion_id', promotionId)
+          .single();
+
       final bool isActive = _computeIsActive(startDate, endDate);
-      await _client.from('promotion').update({
+      final newData = {
         'promotion_name': promotionName.trim(),
-        'min_spent':      minSpent,
-        'discount_type':  discountType,
+        'min_spent': minSpent,
+        'discount_type': discountType,
         'discount_value': discountValue,
-        'start_date':     startDate.toUtc().toIso8601String(),
-        'end_date':       endDate.toUtc().toIso8601String(),
-        'is_active':      isActive,
-      }).eq('promotion_id', promotionId);
+        'start_date': startDate.toUtc().toIso8601String(),
+        'end_date': endDate.toUtc().toIso8601String(),
+        'is_active': isActive,
+      };
+
+      await _client
+          .from('promotion')
+          .update(newData)
+          .eq('promotion_id', promotionId);
+
+      await AuditService.log(
+        adminId: adminId,
+        action: 'promo.update',
+        entityType: 'promotion',
+        entityId: promotionId.toString(),
+        oldValue: Map<String, dynamic>.from(old),
+        newValue: newData,
+      );
       return null;
     } catch (e) {
       return e.toString();
@@ -259,12 +294,28 @@ class SupabaseService {
   }
 
   // ================= DELETE PROMO =================
-  static Future<String?> deletePromotion(int promotionId) async {
+  static Future<String?> deletePromotion(
+      int promotionId, int adminId) async {
     try {
+      final old = await _client
+          .from('promotion')
+          .select()
+          .eq('promotion_id', promotionId)
+          .single();
+
       await _client
           .from('promotion')
           .delete()
           .eq('promotion_id', promotionId);
+
+      await AuditService.log(
+        adminId:    adminId,
+        action:     'promo.delete',
+        entityType: 'promotion',
+        entityId:   promotionId.toString(),
+        oldValue:   Map<String, dynamic>.from(old),
+      );
+
       return null;
     } catch (e) {
       return e.toString();
@@ -272,12 +323,29 @@ class SupabaseService {
   }
 
   // ================= DISCONTINUE PROMO =================
-  static Future<String?> discontinuePromotion(int promotionId) async {
+  static Future<String?> discontinuePromotion(int promotionId, int adminId) async {
     try {
+      // Snapshot before updating
+      final old = await _client
+          .from('promotion')
+          .select()
+          .eq('promotion_id', promotionId)
+          .single();
+
       await _client
           .from('promotion')
           .update({'is_active': false})
           .eq('promotion_id', promotionId);
+
+      await AuditService.log(
+        adminId:    adminId,
+        action:     'promo.discontinue',
+        entityType: 'promotion',
+        entityId:   promotionId.toString(),
+        oldValue:   Map<String, dynamic>.from(old),
+        newValue:   {...Map<String, dynamic>.from(old), 'is_active': false},
+      );
+
       return null;
     } catch (e) {
       return e.toString();

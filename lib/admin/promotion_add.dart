@@ -4,8 +4,13 @@ import '../member/supabase_service.dart';
 
 class PromotionAdd extends StatefulWidget {
   final Map<String, dynamic>? existing;
+  final int adminId;
 
-  const PromotionAdd({super.key, this.existing});
+  const PromotionAdd({
+    super.key,
+    this.existing,
+    required this.adminId,
+  });
 
   @override
   State<PromotionAdd> createState() => _PromotionAddState();
@@ -116,6 +121,7 @@ class _PromotionAddState extends State<PromotionAdd> {
 
     if (_isEditing) {
       error = await SupabaseService.updatePromotion(
+        adminId: widget.adminId,
         promotionId: widget.existing!['promotion_id'],
         promotionName: _nameController.text,
         minSpent: _minSpent,
@@ -126,6 +132,7 @@ class _PromotionAddState extends State<PromotionAdd> {
       );
     } else {
       error = await SupabaseService.createPromotion(
+        adminId: widget.adminId,
         promotionCode: _promoCode,
         promotionName: _nameController.text,
         minSpent: _minSpent,
